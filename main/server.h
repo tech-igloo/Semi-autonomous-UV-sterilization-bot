@@ -7,7 +7,6 @@
 #include "esp_system.h"
 #include "esp_event.h"
 #include "nvs_flash.h"
-#include "driver/gpio.h"
 #include <esp_http_server.h>
 #include <string.h>
 #include <esp_log.h>
@@ -26,9 +25,7 @@
 #include <sys/stat.h>
 #include "esp_err.h"
 #include "mdns.h"
-#include "driver/ledc.h"
 #include <math.h>
-#include "server.h"
 
 /*The various parameters that are used throughout the code*/
 #define EXAMPLE_ESP_MAXIMUM_RETRY 5             //Maximum number of times the esp will try to connect to a network in STA mode
@@ -46,9 +43,6 @@
 #define DATA_LEN 108                            //108 = 4 + 1 + 32 + 1 + 4 + 1 + 64 + 1 (The maximum length of a header data being sent during saving of a network credential)
 #define LINE_LEN 98                             //98 = 32 + 1 + 64 + 1 (The maximum length of a sentence in 1 line in the network credential storage file)
 #define PATH_NUM 5                              //The maximum number of paths that can be stored
-#define resolution 0.1                            //The resolution of points used in the co-ordinate system
-#define DEFAULT_LIN_SPEED 1.5                   //Temporary constants I used. To be deleted when encoder feedback is used
-#define DEFAULT_ANG_SPEED 10                    //Temporary constants I used. To be deleted when encoder feedback is used
 
 /*The variables that keep track of various things while the code is running*/
 extern const char *TAG;                     //Name used for ESP_LOGI statements. Feel free to set it to whatever you want
@@ -67,12 +61,8 @@ char line_str[LINE_LEN];                 //Used for extracting lines from stored
 char ssid[WIFI_NUM][SSID_LEN];           //Store all the network ssids that the ESP can use in STA mode
 char pass[WIFI_NUM][PASS_LEN];           //Store all the network passwords that the ESP can use in STA mode
 
-
-httpd_handle_t start_webserver(void);
-void stop_webserver(httpd_handle_t server);
-
-struct httpd_uri_t {
-    const char       *uri;   
+struct httpd_uri_t {                     //structure intialization for all the structure pointer
+    const char       *uri;               //linking web addresses and corresponding call back functions
     httpd_method_t    method; 
     esp_err_t (*handler)(httpd_req_t *r);
     void *user_ctx;
@@ -146,7 +136,10 @@ char* get_home(int local_flag);
 char* manual_mode();
 char* SendHTML(uint8_t local_flag);
 char* get_stop();
-//^All the above functions defined in "server.c" file
+
+httpd_handle_t start_webserver(void);
+void stop_webserver(httpd_handle_t server);
+/* All the above^ functions defined in "server.c" file */
 
 
 esp_err_t replace_wifi(char* line, int n);

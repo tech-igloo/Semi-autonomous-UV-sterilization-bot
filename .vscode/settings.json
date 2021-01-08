@@ -1,6 +1,17 @@
 {
-    "C_Cpp.errorSquiggles": "Enabled",
-    "idf.espIdfPath": "/home/shic/ESP/esp-idf",
-    "idf.customExtraPaths": ".:/usr/bin:/home/shic/.espressif/tools/xtensa-esp32-elf/esp-2020r2-8.2.0/xtensa-esp32-elf/bin:/home/shic/.espressif/tools/xtensa-esp32s2-elf/esp-2020r2-8.2.0/xtensa-esp32s2-elf/bin:/home/shic/.espressif/tools/esp32ulp-elf/2.28.51-esp-20191205/esp32ulp-elf-binutils/bin:/home/shic/.espressif/tools/esp32s2ulp-elf/2.28.51-esp-20191205/esp32s2ulp-elf-binutils/bin:/home/shic/.espressif/tools/openocd-esp32/v0.10.0-esp32-20191114/openocd-esp32/bin",
-    "idf.customExtraVars": "{\"OPENOCD_SCRIPTS\":\"/home/shic/.espressif/tools/openocd-esp32/v0.10.0-esp32-20191114/openocd-esp32/share/openocd/scripts\"}"
+    "C_Cpp.clang_format_style": "Visual Studio",
+    "editor.formatOnSave": false,
+    "[cpp]": {
+        "editor.quickSuggestions": true
+    },
+    "[c]": {
+        "editor.quickSuggestions": true
+    },
+    "C_Cpp.intelliSenseEngine": "Tag Parser",
+    "C_Cpp.default.compilerPath": "",
+    "files.associations": {
+        "algorithm": "c",
+        "*.tcc": "c"
+    },
+    "idf.flashType": "UART"
 }

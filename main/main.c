@@ -9,19 +9,13 @@ static int s_retry_num = 0;                     //Number of times the esp has tr
 int64_t prev_mili = 0;                   //Used for determining the time duration between 2 commands while controlling the bot in manual mode
 int64_t curr_mili = 0;                   //Used for determining the time duration between 2 commands while controlling the bot in manual mode
 float time_duration = 0;                 //Used for storing the time duration between 2 commands while controlling the bot in manual mode
-// static char buf[DATA_LEN];                      //Used for extracting ssid from POST header data whenever User stores new Network Credentials
-// static char copy[DATA_LEN];                     //Used for extracting password from POST header data whenevr User stores new Network Credentials
 int conn_flag = 0;                       //Denote which Wifi mode the ESP is used : 0 = SAP, 1 to WIFI_NUM = STA wifi index
 int record_flag = 0;                     //Denote whether path is being recorded or not
-// static char ssid[WIFI_NUM][SSID_LEN];           //Store all the network ssids that the ESP can use in STA mode
-// static char pass[WIFI_NUM][PASS_LEN];           //Store all the network passwords that the ESP can use in STA mode
 static char EXAMPLE_ESP_WIFI_SSID[SSID_LEN];    //Store the network ssid that the esp is using currently in STA mode
 static char EXAMPLE_ESP_WIFI_PASS[PASS_LEN];    //Store the network password that the esp is using currently in STA mode
 int total = 0;                           //Total number of network credentials for STA mode stored till now
-// static char line_str[LINE_LEN];                 //Used for extracting lines from stored files
 int total_paths = 0;                     //Total number of paths stored till now
 int auto_flag = 0;                       //Denote whether auto mode is on or off
-// static ledc_channel_config_t led_channel;       //Data Structure having various fields specifying the PWM details for a single channel. A single channel for a single PWM output. Will have to create another for controlling 2 motors
 static TaskHandle_t Task1;                      //Task handle to keep track of created task running on Core 1
 
 
@@ -183,124 +177,6 @@ esp_err_t delete_specific_path(int n)
     rename("/spiffs/temp.txt", "/spiffs/paths.txt");
     return ESP_OK;  
 }
-
-// /*Algorithm for converting path to co-ordinate based format
-//   Remove DEFAULT_LIN_SPEED and DEFAULT_ANG_SPEED if the stored format is in distance and not time*/
-// esp_err_t convert_paths(int n){
-//     char str[LINE_LEN];
-//     char str1[LINE_LEN];
-//     int len = 0, linectr = 0;
-//     char ch, temp[9];
-//     double val, counter;
-//     struct point prev = {0,0,0};
-//     struct point current = prev;
-//     FILE* f_r = fopen("/spiffs/paths.txt", "r");
-//     FILE* f_w = fopen("/spiffs/temp.txt", "w");
-//     if(f_r == NULL){
-//         ESP_LOGE(TAG, "Error opening file paths.txt\n");
-//         return ESP_FAIL;
-//     }
-//     if(f_w == NULL){
-//         ESP_LOGE(TAG, "Error opening file temp.txt\n");
-//         return ESP_FAIL;
-//     }
-//     while(!feof(f_r))
-//     {
-//         strcpy(str, "\0");
-//         fgets(str, LINE_LEN, f_r);
-//         //if(!feof(f_r))
-//         //{
-//             linectr++;
-//             if(linectr == n)
-//             {
-//                 fseek(f_r, -strlen(str), SEEK_CUR);
-//                 fgets(str1, LINE_LEN, f_r);
-//                 char* temp_token = strtok(str1, "\t");
-//                 while(temp_token!=NULL)
-//                 {
-//                     ch = temp_token[0];
-//                     temp_token++;
-//                     val = DEFAULT_LIN_SPEED * atof(temp_token)/1000.0;
-//                     if(ch == 'f' || ch == 'b')
-//                         len += ceil(val/resolution);
-//                     temp_token = strtok(NULL, "\t");
-//                 }
-//                 char* result = (char *)calloc((len*2*10+1),sizeof(char));
-//                 //strcpy(result,"");
-//                 //char* result = (char *)calloc(2048,sizeof(char));
-//                 strcpy(result, "");
-//                 ESP_LOGI(TAG, "Length: %d", len*4*9+1);
-//                 char* token = strtok(str, "\t");
-//                 while(token!=NULL)
-//                 {
-//                     ch = token[0];
-//                     token++;
-//                     val = atof(token);
-//                     if(ch == 'f'){
-//                         val = DEFAULT_LIN_SPEED * val/1000.0;
-//                         counter = resolution;
-//                         while(counter <= val){
-//                             current.x = prev.x + counter*cos(prev.theta*3.14/180.0);
-//                             current.y = prev.y + counter*sin(prev.theta*3.14/180.0);
-//                             ESP_LOGI(TAG, "(%f, %f)", current.x, current.y);
-//                             counter = counter + resolution;
-//                             strcpy(temp, "");
-//                             snprintf(temp, 9, "%f", current.x);
-//                             strcat(result, temp);
-//                             strcat(result, " ");
-//                             strcpy(temp, "");
-//                             snprintf(temp, 9, "%f", current.y);
-//                             strcat(result, temp);
-//                             strcat(result, " ");
-//                         }
-//                         current.theta = prev.theta;
-//                         prev = current;
-//                     }
-//                     else if(ch == 'b'){
-//                         val = DEFAULT_LIN_SPEED * val/1000.0;
-//                         counter = resolution;
-//                         while(counter <= val){
-//                             current.x = prev.x - counter*cos(prev.theta*3.14/180.0);
-//                             current.y = prev.y - counter*sin(prev.theta*3.14/180.0);
-//                             ESP_LOGI(TAG, "(%f, %f)", current.x, current.y);
-//                             counter = counter + resolution;
-//                             strcpy(temp, "");
-//                             snprintf(temp, 9, "%f", current.x);
-//                             strcat(result, temp);
-//                             strcat(result, " ");
-//                             strcpy(temp, "");
-//                             snprintf(temp, 9, "%f", current.y);
-//                             strcat(result, temp);
-//                             strcat(result, " ");
-//                         }
-//                         current.theta = prev.theta;
-//                         prev = current;
-//                     }
-//                     else if(ch == 'r'){
-//                         val = DEFAULT_ANG_SPEED * val/1000.0;
-//                         prev.theta = prev.theta + val;
-//                     }
-//                     else if(ch == 'l'){
-//                         val = DEFAULT_ANG_SPEED * val/1000.0;
-//                         prev.theta = prev.theta - val;
-//                     }
-//                     token = strtok(NULL, "\t");
-//                 }
-//                 //strcat(result, "\b");
-//                 strcat(result, "\n");
-//                 ESP_LOGI(TAG, "%s", result);
-//                 fprintf(f_w, "%s", result);
-//             }
-//             else
-//                 fprintf(f_w, "%s", str);
-//         //}
-//     }
-//     fclose(f_r);
-//     fclose(f_w);
-//     remove("/spiffs/paths.txt");
-//     rename("/spiffs/temp.txt", "/spiffs/paths.txt");
-//     return ESP_OK;
-// }
 
 /*Keeps all the lines in paths.txt till the nth line and deletes all the lines after that*/
 esp_err_t delete_paths(int n){

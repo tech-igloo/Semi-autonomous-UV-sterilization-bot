@@ -1,26 +1,25 @@
 {
     "configurations": [
-        {
-            "name": "Linux",
-            "includePath": [
-                "${config:idf.espIdfPath}/components/**",
-                "${config:idf.espIdfPathWin}/components/**"
-            ],
-            "defines": [],
-            "compilerPath": "/home/shic/.espressif/tools/xtensa-esp32-elf/esp-2020r3-8.4.0/xtensa-esp32-elf/bin/xtensa-esp32-elf-gcc",
-            "cStandard": "gnu11",
-            "cppStandard": "gnu++14",
-            "intelliSenseMode": "gcc-x64",
-            "compileCommands": "${workspaceFolder}/build/compile_commands.json",
-            "browse": {
-                "path": [
-                    "${config:idf.espIdfPath}/components",
-                    "${config:idf.espIdfPathWin}/components",
-                    "${workspaceFolder}"
-                ],
-                "limitSymbolsToIncludedHeaders": true
-            }
+      {
+        "name": "ESP-IDF",
+        "compilerPath": "/home/shic/.espressif/tools/xtensa-esp32-elf/esp-2020r3-8.4.0/xtensa-esp32-elf/bin/xtensa-esp32-elf-gcc",
+        "cStandard": "c11",
+        "cppStandard": "c++17",
+        "includePath": [
+          "${config:idf.espIdfPath}/components/**",
+          "${config:idf.espIdfPathWin}/components/**",
+          "${workspaceFolder}/**"
+        ],
+        "browse": {
+          "path": [
+            "${config:idf.espIdfPath}/components",
+            "${config:idf.espIdfPathWin}/components",
+            "${workspaceFolder}"
+          ],
+          "limitSymbolsToIncludedHeaders": false
         }
+      }
     ],
     "version": 4
-}
+  }
+  

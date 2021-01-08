@@ -1,55 +1,76 @@
 #include "algo.h"
 
+int Lpwm = 0; 
+int Rpwm = 0;     //Always remember you can't define the variable in .h file                         
 
 /*Used for setting up PWM Channel (Ref: Official Github Repo)*/
 void init_pwm()
 {
     ledc_timer_config_t led_timer = {
-            .duty_resolution = LEDC_TIMER_13_BIT, // resolution of PWM duty, means PWM value can go from 0 to (2^13-1)
-            .freq_hz = 5000,                      // frequency of PWM signal
-            .speed_mode = LEDC_HIGH_SPEED_MODE,           // timer mode
-            .timer_num = LEDC_TIMER_0,            // timer index
+            .duty_resolution = LEDC_TIMER_12_BIT,  // resolution of PWM duty, means PWM value can go from 0 to (2^12-1 = 4095)
+            .freq_hz = 10000,                      // frequency of PWM signal
+            .speed_mode = LEDC_HIGH_SPEED_MODE,    // High speed mode for immiediate effect
+            .timer_num = LEDC_TIMER_0,             // timer index
             .clk_cfg = LEDC_AUTO_CLK,              // Auto select the source clock
         };
     ledc_timer_config(&led_timer);
-    led_channel.channel = LEDC_CHANNEL_0;
-    led_channel.duty = 0;						//the duty value of the PWM signal
-    led_channel.gpio_num = 2;					//the GPIO pin to which the the PWM signal will be supplied
-    led_channel.speed_mode = LEDC_HIGH_SPEED_MODE;
-    led_channel.hpoint = 0;
-    led_channel.timer_sel = LEDC_TIMER_0;
-    ledc_channel_config(&led_channel);
+    
+    motorL.channel = LEDC_CHANNEL_0;
+    motorL.duty = 0;						//the duty value of the PWM signal
+    motorL.gpio_num = LEFT_MOTOR_PIN;			//the GPIO pin connected to Left motor controller PWM port
+    motorL.speed_mode = LEDC_HIGH_SPEED_MODE;
+    motorL.hpoint = 0;                      //for left aligned PWM
+    motorL.timer_sel = LEDC_TIMER_0;
+    ledc_channel_config(&motorL);
+
+    motorR.channel = LEDC_CHANNEL_1;
+    motorR.duty = 0;						//the duty value of the PWM signal
+    motorR.gpio_num = RIGHT_MOTOR_PIN;			//the GPIO pin connected to Right motor controller PWM port
+    motorR.speed_mode = LEDC_HIGH_SPEED_MODE;
+    motorR.hpoint = 0;
+    motorR.timer_sel = LEDC_TIMER_0;
+    ledc_channel_config(&motorR);
 }
 
 /*The following are dummy functions for movement of the bot*/
 void move_forward()
 {
-    ledc_set_duty(led_channel.speed_mode, led_channel.channel, 8192);   //Update the PWM value to be used by this lED Channel.
-    ledc_update_duty(led_channel.speed_mode, led_channel.channel);      //Use the Updated PWM values
-}                                                                       //Similar functions below with different duty cycles
+    ledc_set_duty(motorL.speed_mode, motorL.channel, 4000);   //Update the PWM value to be used by this lED Channel.
+    ledc_update_duty(motorL.speed_mode, motorL.channel);      //Use the Updated PWM values
+    ledc_set_duty(motorR.speed_mode, motorR.channel, 4000);
+    ledc_update_duty(motorR.speed_mode, motorR.channel);
+}                                                                       
 
 void move_left()
 {
-    ledc_set_duty(led_channel.speed_mode, led_channel.channel, 4096);
-    ledc_update_duty(led_channel.speed_mode, led_channel.channel);
+    ledc_set_duty(motorL.speed_mode, motorL.channel, 2000);
+    ledc_update_duty(motorL.speed_mode, motorL.channel);
+    ledc_set_duty(motorR.speed_mode, motorR.channel, 4000);
+    ledc_update_duty(motorR.speed_mode, motorR.channel);
 }
 
 void move_right()
 {
-    ledc_set_duty(led_channel.speed_mode, led_channel.channel, 2048);
-    ledc_update_duty(led_channel.speed_mode, led_channel.channel);
+    ledc_set_duty(motorL.speed_mode, motorL.channel, 4000);
+    ledc_update_duty(motorL.speed_mode, motorL.channel);
+    ledc_set_duty(motorR.speed_mode, motorR.channel, 2000);
+    ledc_update_duty(motorR.speed_mode, motorR.channel);
 }
 
 void move_back()
 {
-    ledc_set_duty(led_channel.speed_mode, led_channel.channel, 1024);
-    ledc_update_duty(led_channel.speed_mode, led_channel.channel);
+    ledc_set_duty(motorL.speed_mode, motorL.channel, 4000);
+    ledc_update_duty(motorL.speed_mode, motorL.channel);
+    ledc_set_duty(motorR.speed_mode, motorR.channel, 4000);
+    ledc_update_duty(motorR.speed_mode, motorR.channel);
 }
 
 void move_stop()
 {
-    ledc_set_duty(led_channel.speed_mode, led_channel.channel, 0);
-    ledc_update_duty(led_channel.speed_mode, led_channel.channel);
+    ledc_set_duty(motorL.speed_mode, motorL.channel, 0);
+    ledc_update_duty(motorL.speed_mode, motorL.channel);
+    ledc_set_duty(motorR.speed_mode, motorR.channel, 0);
+    ledc_update_duty(motorR.speed_mode, motorR.channel);
 }
 
 /*Algorithm for converting path to co-ordinate based format
