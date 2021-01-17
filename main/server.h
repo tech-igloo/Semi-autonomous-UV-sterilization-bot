@@ -50,6 +50,7 @@ extern int flag;                           //Used for determining in which direc
 extern int record_flag;                     //Denote whether path is being recorded or not
 extern int conn_flag;                      //Denote which Wifi mode the ESP is used : 0 = SAP, 1 to WIFI_NUM = STA wifi index
 extern int auto_flag;                       //Denote whether auto mode is on or off
+extern int manual_flag;
 extern int total ;                           //Total number of network credentials for STA mode stored till now
 extern int total_paths;                     //Total number of paths stored till now
 extern int64_t prev_mili;                   //Used for determining the time duration between 2 commands while controlling the bot in manual mode
@@ -141,17 +142,18 @@ httpd_handle_t start_webserver(void);
 void stop_webserver(httpd_handle_t server);
 /* All the above^ functions defined in "server.c" file */
 
+char determine(int local_flag);
+esp_err_t convert_paths(int n);
+esp_err_t get_path(int local_flag);
+
 
 esp_err_t replace_wifi(char* line, int n);
 esp_err_t update_number(int n);
 esp_err_t delete(int n);
 esp_err_t delete_specific_path(int n);
-esp_err_t convert_paths(int n);
 esp_err_t delete_paths(int n);
 esp_err_t update_wifi();
 esp_err_t update_paths();
-esp_err_t get_path(int local_flag);
-char determine(int local_flag);
 
 #endif
 // WE should only declare the vars in .h and define it in any one c file

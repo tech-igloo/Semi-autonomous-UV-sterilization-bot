@@ -11,7 +11,11 @@
     "C_Cpp.default.compilerPath": "",
     "files.associations": {
         "algorithm": "c",
-        "*.tcc": "c"
+        "*.tcc": "c",
+        "sstream": "c",
+        "chrono": "c",
+        "cmath": "c",
+        "*.inc": "c"
     },
     "idf.flashType": "UART"
 }

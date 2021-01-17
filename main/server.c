@@ -1,5 +1,5 @@
 #include "server.h"
-
+#include "algo.h"
 
 /*The following are structures linking each web address with their corresponding callback functions
   Each structure contains the web address, the corresponding callback function, the HTTP method (HTTP_GET or HTTP_POST) and any user context(NULL for all the structures)*/
@@ -401,6 +401,7 @@ httpd_uri_t uri_sta_data5 = {
 /*Callback function whenever "/" is accessed*/
 esp_err_t handle_OnConnect(httpd_req_t *req)
 {
+    manual_flag = 0;
     flag = -1;
     char* resp = default_page(); //Get the HTML Code
     httpd_resp_send(req, resp, strlen(resp));  //Send the HTML Code to display
@@ -431,6 +432,7 @@ esp_err_t handle_reset(httpd_req_t *req)
 esp_err_t handle_start(httpd_req_t *req)
 {
     record_flag = 1; //record_flag is changed to 1 to denote that recording has started
+    manual_flag = 0;
     flag = -1;       //-1 denotes stop
 /*    FILE* f = fopen("/spiffs/paths.txt", "w");
     if (f == NULL) {
@@ -522,7 +524,9 @@ esp_err_t handle_path5(httpd_req_t *req)
 
 /*Callback function whenever "/manual" is accessed*/
 esp_err_t handle_manual(httpd_req_t *req)
-{
+{   
+    manual_flag = 1; //only when in manual mode, set to 0 again if start(recording) is pressed
+
     record_flag = 0; //recording has not yet started
     ESP_LOGI(TAG, "Record Flag: %d", record_flag);
     char det = determine(flag);	//the mode it was in earlier
@@ -688,7 +692,8 @@ esp_err_t handle_delete_path5(httpd_req_t *req)
 /*Callback function whenever "/auto" is accessed*/
 esp_err_t handle_auto(httpd_req_t *req)
 {
-    flag = 4; //denotes auto mode
+    flag = 4;
+    //auto_flag = 1; //activates only when execute is pressed
     char* resp = get_auto();
     httpd_resp_send(req, resp, strlen(resp));
     free(resp);
@@ -712,7 +717,7 @@ esp_err_t handle_forward(httpd_req_t *req)
     httpd_resp_send(req, resp, strlen(resp));	//display the webpage
     free(resp);
     ESP_LOGI(TAG, "Record Flag: %d", record_flag);
-    if(record_flag == 1)        //if the path is recording
+    if(record_flag == 1 && det != 's')        //if the path is recording
     {
         //move_forward();
         FILE* f = fopen("/spiffs/paths.txt", "a");		//Open the File for writing the value
@@ -721,7 +726,7 @@ esp_err_t handle_forward(httpd_req_t *req)
             return ESP_FAIL;
         }
         fputc(det, f);  //for storing the previous direction
-        fprintf(f, "%.3f", time_duration);  //for storing the previous time duration
+        fprintf(f, "%.3f", time_duration);  //for storing the previous time duration -- this should altered according to the encoder data
         fputc('\t', f); //seperate from next entry by '\t'
         fclose(f);
     }
@@ -746,7 +751,7 @@ esp_err_t handle_left(httpd_req_t *req)
     httpd_resp_send(req, resp, strlen(resp));
     free(resp);
     ESP_LOGI(TAG, "Record Flag: %d", record_flag);
-    if(record_flag == 1)        //if the path is recording
+    if(record_flag == 1 && det != 's')        //if the path is recording
     {
         //move_left();
         FILE* f = fopen("/spiffs/paths.txt", "a");
@@ -779,7 +784,7 @@ esp_err_t handle_right(httpd_req_t *req)
     httpd_resp_send(req, resp, strlen(resp));
     free(resp);
     ESP_LOGI(TAG, "Record Flag: %d", record_flag);
-    if(record_flag == 1)
+    if(record_flag == 1 && det != 's')
     {
         //move_right();
         FILE* f = fopen("/spiffs/paths.txt", "a");
@@ -803,8 +808,8 @@ esp_err_t handle_right(httpd_req_t *req)
 esp_err_t handle_back(httpd_req_t *req)
 {
     char det = determine(flag);
-    curr_mili = esp_timer_get_time();
-    time_duration = (curr_mili - prev_mili)/1000.0;
+    curr_mili = esp_timer_get_time();  //In micro seconds
+    time_duration = (curr_mili - prev_mili)/1000.0;      //Converting in milli
     ESP_LOGI(TAG,"%c%f",det,time_duration);
     prev_mili = esp_timer_get_time();
     flag = 3;       //Now going in back direction, everything else same as forward and left and right
@@ -812,7 +817,7 @@ esp_err_t handle_back(httpd_req_t *req)
     httpd_resp_send(req, resp, strlen(resp));
     free(resp);
     ESP_LOGI(TAG, "Record Flag: %d", record_flag);
-    if(record_flag == 1)
+    if(record_flag == 1 && det != 's')
     {
         //move_back();
         FILE* f = fopen("/spiffs/paths.txt", "a");
@@ -879,7 +884,7 @@ esp_err_t handle_pause(httpd_req_t *req)
     httpd_resp_send(req, resp, strlen(resp));
     free(resp);
     ESP_LOGI(TAG, "Record Flag: %d", record_flag);
-    if(record_flag == 1) //If recording is ongoing, then store the direction in which it was travelling and the time duration for whcih it had travelled in that direction
+    if(record_flag == 1 && det != 's') //If recording is ongoing, then store the direction in which it was travelling and the time duration for whcih it had travelled in that direction
     {
         FILE* f = fopen("/spiffs/paths.txt", "a");
         if (f == NULL) {
@@ -903,6 +908,7 @@ esp_err_t handle_save(httpd_req_t *req)
 {
     update_number(1); //total_paths is updated in paths.txt and the global variable is also updated
     ESP_ERROR_CHECK(convert_paths(total_paths+1));  //convert the saved path into co-ordinate based representation, you can comment this part out
+   // ESP_LOGI(TAG, "Now displaying test----------------");
     char* resp = get_home(3);
     httpd_resp_send(req, resp, strlen(resp));
     free(resp);

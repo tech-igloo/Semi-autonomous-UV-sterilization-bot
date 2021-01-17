@@ -16,6 +16,7 @@ static char EXAMPLE_ESP_WIFI_PASS[PASS_LEN];    //Store the network password tha
 int total = 0;                           //Total number of network credentials for STA mode stored till now
 int total_paths = 0;                     //Total number of paths stored till now
 int auto_flag = 0;                       //Denote whether auto mode is on or off
+int manual_flag = 0;                     //To check if it is in manual motion mode
 static TaskHandle_t Task1;                      //Task handle to keep track of created task running on Core 1
 
 
@@ -91,6 +92,8 @@ esp_err_t update_number(int n){
             }
             else
                 fprintf(f_w, "%s", str);	//else write the string that was extracted from the file
+                //ESP_LOGI(TAG, "%s", str);
+
         }
     }
     fclose(f_r);
@@ -405,74 +408,6 @@ esp_err_t update_paths()
     return ESP_OK;
 }
 
-/*Execute the local_flag th path*/
-esp_err_t get_path(int local_flag)
-{
-    char str[LINE_LEN];
-    int linectr = 0;
-    FILE* f_r = fopen("/spiffs/paths.txt", "r");
-    if (f_r == NULL) {
-        ESP_LOGE(TAG, "Failed to open file for reading");
-        return ESP_FAIL;
-    }
-    while(!feof(f_r))
-    {
-        strcpy(str, "\0");
-        fgets(str, LINE_LEN, f_r);
-        if(!feof(f_r))
-        {
-            linectr++;
-            if(linectr == (local_flag+1)) //1st line contains the number of valid paths, so nth path will be on (n+1)th line
-                break;
-        }
-    }
-    ESP_LOGI(TAG, "%s", str);
-    fclose(f_r);
-    //return ESP_OK;
-    char* token = strtok(str, "\t");    //The elements are seperated by "\t"
-    auto_flag = 1;                      
-    while(token!=NULL)					//iterate through each of the elements
-    {
-        char ch = token[0];             //Get the first character which denotes the direction to be travelled
-        switch(ch){
-            case 'f'://move_forward();break;
-                        flag = 0; break;	//The flag values are set here. The infinite Loop in Task 1 checks these flag variables and calls the appropriate functions
-            case 'l'://move_left();break;
-                        flag = 1; break;
-            case 'r'://move_right();break;
-                        flag = 2; break;
-            case 'b'://move_back();break;
-                        flag = 3; break;
-            default://move_stop();break;
-                        flag = 4; break;
-        }
-        ESP_LOGI(TAG, "Direction: %c", ch);
-        token++;                        //Increment the pointer to get the numerical value stored after the first character
-        float time = atof(token);       //Convert the value from string to float
-        ESP_LOGI(TAG, "Time: %f", time);
-        vTaskDelay(time/portTICK_PERIOD_MS);    //Wait for the appropriate time
-        token = strtok(NULL, "\t");             //Get the next element
-    }
-    //move_stop();
-    auto_flag = 0;
-    return ESP_OK;
-}
-
-/*Get the character to be used for storing the direction*/
-char determine(int local_flag)
-{
-    char c;
-    switch(local_flag){
-        case -1:c = 's';break;
-        case 0: c = 'f';break;
-        case 1: c = 'l';break;
-        case 2: c = 'r';break;
-        case 3: c = 'b';break;
-        default:c = 'a';break;
-    }
-    return c;
-}
-
 /*Not really required(Ref: Official Github Repo)*/
 static void wifi_event_handler(void* arg, esp_event_base_t event_base,
                                     int32_t event_id, void* event_data)
@@ -626,14 +561,7 @@ void Task1code( void * pvParameters ){
 	
     while(1){   //Put code here. This is like void loop() in arduino
     	//ESP_LOGI(TAG, "Infinite Loop running On core %d", xPortGetCoreID());
-        if(record_flag == 1){					//record_flag, flag, auto_flag are updated in other portions of the code 
-            if(flag == 0) move_forward();
-            else if(flag == 1) move_left();
-            else if(flag == 2) move_right();
-            else if(flag == 3) move_back();
-            else move_stop();
-        }
-        else if(auto_flag == 1){
+        if(record_flag == 1 || auto_flag == 1 || manual_flag == 1){					//manual_flag, record_flag, flag, auto_flag are updated in other portions of the code 
             if(flag == 0) move_forward();
             else if(flag == 1) move_left();
             else if(flag == 2) move_right();
