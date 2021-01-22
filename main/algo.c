@@ -1,3 +1,4 @@
+#include "server.h"
 #include "algo.h"
 
 int Lpwm = 0; 
@@ -92,8 +93,8 @@ char determine(int local_flag)
   Remove DEFAULT_LIN_SPEED and DEFAULT_ANG_SPEED if the stored format is in distance and not time*/
 esp_err_t convert_paths(int n){
     char str[LINE_LEN];
-    char str1[LINE_LEN];
-    int len = 0, linectr = 0;
+    char aux[500] = "", aux1[500] = "";
+    int len = 0, linectr = 0, count_flag = 1;
     char ch, temp[9];
     double val;
     struct point prev = {0,0,0};
@@ -114,85 +115,92 @@ esp_err_t convert_paths(int n){
         fgets(str, LINE_LEN, f_r);
         //if(!feof(f_r))
         //{
-        ESP_LOGI(TAG, "%s", str);
-        ESP_LOGI(TAG, "Length: %d", strlen(str));
-
-            linectr++;
-            if(linectr == n)
-            {
-                fseek(f_r, -strlen(str), SEEK_CUR);
-                fgets(str1, LINE_LEN, f_r);
-                char* temp_token = strtok(str1, "\t");
-                while(temp_token!=NULL)
-                {
-                    ch = temp_token[0];
-                    temp_token++;
-                    //val = DEFAULT_LIN_SPEED * atof(temp_token)/1000.0;       //temp_token has time in milli seconds
-                    if(ch == 'f' || ch == 'b')
-                        len ++;      
-                    temp_token = strtok(NULL, "\t");
-                }
-                char* result = (char *)calloc((len*2*10+1),sizeof(char));
-                //strcpy(result,"");
-                //char* result = (char *)calloc(2048,sizeof(char));
-                strcpy(result, "");
-                ESP_LOGI(TAG, "Length: %d", len*4*9+1);
-                char* token = strtok(str, "\t");
-                while(token!=NULL)
-                {
-                    ch = token[0];
-                    token++;
-                    val = atof(token);
-                    if(ch == 'f'){
-                        val = DEFAULT_LIN_SPEED * val/1000.0;
-                        current.x = prev.x + val*cos(prev.theta*3.14/180.0);
-                        current.y = prev.y + val*sin(prev.theta*3.14/180.0);
-                        ESP_LOGI(TAG, "(%f, %f)", current.x, current.y);
-                        strcpy(temp, "");
-                        snprintf(temp, 9, "%f", current.x);
-                        strcat(result, temp);
-                        strcat(result, " ");
-                        strcpy(temp, "");
-                        snprintf(temp, 9, "%f", current.y);
-                        strcat(result, temp);
-                        strcat(result, " ");
-                        current.theta = prev.theta;
-                        prev = current;
-                    }
-                    else if(ch == 'b'){
-                        val = DEFAULT_LIN_SPEED * val/1000.0;
-                        current.x = prev.x - val*cos(prev.theta*3.14/180.0);
-                        current.y = prev.y - val*sin(prev.theta*3.14/180.0);
-                        ESP_LOGI(TAG, "(%f, %f)", current.x, current.y);
-                        strcpy(temp, "");
-                        snprintf(temp, 9, "%f", current.x);
-                        strcat(result, temp);
-                        strcat(result, " ");
-                        strcpy(temp, "");
-                        snprintf(temp, 9, "%f", current.y);
-                        strcat(result, temp);
-                        strcat(result, " ");
-                        current.theta = prev.theta;
-                        prev = current;
-                    }
-                    else if(ch == 'r'){
-                        val = DEFAULT_ANG_SPEED * val/1000.0;
-                        prev.theta = prev.theta + val;
-                    }
-                    else if(ch == 'l'){
-                        val = DEFAULT_ANG_SPEED * val/1000.0;
-                        prev.theta = prev.theta - val;
-                    }
-                    token = strtok(NULL, "\t");
-                }
-                //strcat(result, "\b");
-                strcat(result, "\n");
-                ESP_LOGI(TAG, "%s", result);
-                fprintf(f_w, "%s", result);
-            }
-            else
-                fprintf(f_w, "%s", str);
+        // ESP_LOGI(TAG, "%s", str);
+        // ESP_LOGI(TAG, "Length: %d", strlen(str));
         //}
+            strcat(aux, str);
+            if (count_flag){
+                linectr++;
+                count_flag = 0;
+            }              
+            if (strchr(str, '\n')){      //We only increment the linectr when we have \n, because of a single path having multiple lines
+                if(linectr == n) //This before the reseting temp so that if deceted it should retain it
+                {
+                    // fseek(f_r, -strlen(str), SEEK_CUR);
+                    // fgets(str1, LINE_LEN, f_r);
+                    strcpy(aux1,aux);
+                    ESP_LOGI(TAG, "%s", aux1);
+                    //Length calc
+                    char* temp_token = strtok(aux, "\t");
+                    while(temp_token!=NULL)
+                    {
+                        ch = temp_token[0];
+                        temp_token++;
+                        if(ch == 'f' || ch == 'b')
+                        len ++;                 
+                        temp_token = strtok(NULL, "\t");
+                    }
+                    char* result = (char *)calloc((len*2*10+1),sizeof(char));
+                    strcpy(result, "");
+                    ESP_LOGI(TAG, "Length: %d", len*4*9+1);
+                    //result string storage
+                    char* token = strtok(aux1, "\t");
+                    while(token!=NULL)
+                    {
+                        ch = token[0];
+                        token++;
+                        val = atof(token);
+                        if(ch == 'f'){
+                            val = DEFAULT_LIN_SPEED * val/1000.0;
+                            current.x = prev.x + val*cos(prev.theta*3.14/180.0);
+                            current.y = prev.y + val*sin(prev.theta*3.14/180.0);
+                            ESP_LOGI(TAG, "(%f, %f)", current.x, current.y);
+                            strcpy(temp, "");
+                            snprintf(temp, 9, "%f", current.x);
+                            strcat(result, temp);
+                            strcat(result, " ");
+                            strcpy(temp, "");
+                            snprintf(temp, 9, "%f", current.y);
+                            strcat(result, temp);
+                            strcat(result, " ");
+                            current.theta = prev.theta;
+                            prev = current;
+                        }
+                        else if(ch == 'b'){
+                            val = DEFAULT_LIN_SPEED * val/1000.0;
+                            current.x = prev.x - val*cos(prev.theta*3.14/180.0);
+                            current.y = prev.y - val*sin(prev.theta*3.14/180.0);
+                            ESP_LOGI(TAG, "(%f, %f)", current.x, current.y);
+                            strcpy(temp, "");
+                            snprintf(temp, 9, "%f", current.x);
+                            strcat(result, temp);
+                            strcat(result, " ");
+                            strcpy(temp, "");
+                            snprintf(temp, 9, "%f", current.y);
+                            strcat(result, temp);
+                            strcat(result, " ");
+                            current.theta = prev.theta;
+                            prev = current;
+                        }
+                        else if(ch == 'r'){
+                            val = DEFAULT_ANG_SPEED * val/1000.0;
+                            prev.theta = prev.theta + val;
+                        }
+                        else if(ch == 'l'){
+                            val = DEFAULT_ANG_SPEED * val/1000.0;
+                            prev.theta = prev.theta - val;
+                        }
+                        token = strtok(NULL, "\t");
+                    }
+                    strcat(result, "\n");
+                    ESP_LOGI(TAG, "%s", result);
+                    fprintf(f_w, "%s", result);
+                }
+                else
+                    fprintf(f_w, "%s", aux);
+                count_flag=1;
+                strcpy(aux, "");
+            }
     }
     fclose(f_r);
     fclose(f_w);
@@ -204,8 +212,8 @@ esp_err_t convert_paths(int n){
 /*Execute the local_flag th path*/
 esp_err_t get_path(int local_flag)
 {
-    char str[LINE_LEN];
-    int linectr = 0;
+    char str[LINE_LEN], temp[500] = ""; // Change this temp to calloc
+    int linectr = 0, count_flag = 1;
     FILE* f_r = fopen("/spiffs/paths.txt", "r");
     if (f_r == NULL) {
         ESP_LOGE(TAG, "Failed to open file for reading");
@@ -215,17 +223,27 @@ esp_err_t get_path(int local_flag)
     {
         strcpy(str, "\0");
         fgets(str, LINE_LEN, f_r);
+
         if(!feof(f_r))
         {
-            linectr++;
-            if(linectr == (local_flag+1)) //1st line contains the number of valid paths, so nth path will be on (n+1)th line
-                break;
+            strcat(temp, str);
+            if (count_flag){
+                linectr++;
+                count_flag = 0;
+            }  
+                          
+            if (strchr(str, '\n')){      //We only increment the linectr when we have \n, because of a single path having multiple lines
+                if(linectr == (local_flag+1)) //This before the reseting temp so that if deceted it should retain it
+                    break;
+                count_flag=1;
+                strcpy(temp, "");
+            }
         }
     }
-    ESP_LOGI(TAG, "%s", str);
+    ESP_LOGI(TAG, "%s", temp);
     fclose(f_r);
     //return ESP_OK;
-    char* token = strtok(str, "\t");    //The elements are seperated by "\t"
+    char* token = strtok(temp, "\t");    //The elements are seperated by "\t"
     auto_flag = 1;                      
     while(token!=NULL)					//iterate through each of the elements
     {

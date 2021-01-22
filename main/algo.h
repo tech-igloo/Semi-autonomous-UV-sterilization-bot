@@ -1,7 +1,6 @@
 #ifndef ALGO_H
 #define ALGO_H
 
-#include "server.h"
 #include "driver/gpio.h"
 #include "driver/ledc.h"
 

@@ -66,7 +66,7 @@ esp_err_t replace_wifi(char* line, int n)
 esp_err_t update_number(int n){
     char line[2];
     char str[LINE_LEN];
-    int linectr = 0;
+    int linectr = 0,  count_flag = 1;
     total_paths = total_paths + n;          //Update the total_paths global variable
     sprintf(line, "%d", total_paths);		//convert total_paths from an integer to a string and store it on 'line' variable
     FILE* f_r = fopen("/spiffs/paths.txt", "r");
@@ -83,16 +83,22 @@ esp_err_t update_number(int n){
     {
         strcpy(str, "\0");					//initialize to null string
         fgets(str, LINE_LEN, f_r);
-        if(!feof(f_r))
-        {
-            linectr++;
+        if(!feof(f_r)){
+
+            if (count_flag){
+                linectr++;
+                count_flag = 0;
+            }                
+            if (strchr(str, '\n'))      //We only increment the linectr when we have \n, because of a single path having multiple lines
+                count_flag=1;
+
             if(linectr == 1){				//since it is stored in the 1st line
                 fprintf(f_w, "%s", line);   //Update the value stored in the file by writing the 'line' variable that contains the string representaion of total_paths
                 fprintf(f_w, "%s", "\n");
             }
             else
                 fprintf(f_w, "%s", str);	//else write the string that was extracted from the file
-                //ESP_LOGI(TAG, "%s", str);
+                ESP_LOGI(TAG, "%s", str);
 
         }
     }
@@ -149,7 +155,7 @@ esp_err_t delete(int n)
 esp_err_t delete_specific_path(int n)
 {
     char str[LINE_LEN];
-    int linectr = 0;
+    int linectr = 0, count_flag = 1;
     FILE* f_r = fopen("/spiffs/paths.txt", "r");
     FILE* f_w = fopen("/spiffs/temp.txt", "w");
     if(f_r == NULL){
@@ -164,9 +170,15 @@ esp_err_t delete_specific_path(int n)
     {
         strcpy(str, "\0");
         fgets(str, LINE_LEN, f_r);
-        if(!feof(f_r))
-        {
-            linectr++;
+        if(!feof(f_r)){
+
+            if (count_flag){
+                linectr++;
+                count_flag = 0;
+            }                
+            if (strchr(str, '\n'))      //We only increment the linectr when we have \n, because of a single path having multiple lines
+                count_flag=1;
+
             if(linectr == (n+1)){           //Since the 1st line contains the number of valid paths, so the nth path will be on the (n+1)th Line
                 continue;
             }
@@ -184,7 +196,7 @@ esp_err_t delete_specific_path(int n)
 /*Keeps all the lines in paths.txt till the nth line and deletes all the lines after that*/
 esp_err_t delete_paths(int n){
     char str[LINE_LEN];
-    int linectr = 0;
+    int linectr = 0, count_flag = 1;
     FILE* f_r = fopen("/spiffs/paths.txt", "r");
     FILE* f_w = fopen("/spiffs/temp.txt", "w");
     if(f_r == NULL){
@@ -199,9 +211,16 @@ esp_err_t delete_paths(int n){
     {
         strcpy(str, "\0");              //Used for intializing str to NULL before extracting each line
         fgets(str, LINE_LEN, f_r);
-        if(!feof(f_r))
-        {
-            linectr++;
+       // ESP_LOGI(TAG, "%s", str);
+        if(!feof(f_r)){   
+            
+            if (count_flag){
+                linectr++;
+                count_flag = 0;
+            }                
+            if (strchr(str, '\n'))      //We only increment the linectr when we have \n, because of a single path having multiple lines
+                count_flag=1;
+
             if(linectr <= n)
                 fprintf(f_w, "%s", str);
             else

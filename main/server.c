@@ -908,7 +908,7 @@ esp_err_t handle_save(httpd_req_t *req)
 {
     update_number(1); //total_paths is updated in paths.txt and the global variable is also updated
     ESP_ERROR_CHECK(convert_paths(total_paths+1));  //convert the saved path into co-ordinate based representation, you can comment this part out
-   // ESP_LOGI(TAG, "Now displaying test----------------");
+    ESP_LOGI(TAG, "Now total paths---------------- %d", total_paths);
     char* resp = get_home(3);
     httpd_resp_send(req, resp, strlen(resp));
     free(resp);
