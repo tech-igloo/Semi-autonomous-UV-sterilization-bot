@@ -140,12 +140,7 @@ char* get_stop();
 
 httpd_handle_t start_webserver(void);
 void stop_webserver(httpd_handle_t server);
-/* All the above^ functions defined in "server.c" file */
-
-char determine(int local_flag);
-esp_err_t convert_paths(int n);
-esp_err_t get_path(int local_flag);
-
+/* All the above functions defined in "server.c" file */
 
 esp_err_t replace_wifi(char* line, int n);
 esp_err_t update_number(int n);

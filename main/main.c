@@ -577,8 +577,12 @@ void wifi_init_sta(void)
 
 /*Function that will run parallely on Core 1*/
 void Task1code( void * pvParameters ){
-	
-    while(1){   //Put code here. This is like void loop() in arduino
+    uint32_t io_num;
+
+    init_gpio();    //Initialize encoder and sensor pins
+	init_pwm();     //Initialize PWM channel
+   
+    while(1){   
     	//ESP_LOGI(TAG, "Infinite Loop running On core %d", xPortGetCoreID());
         if(record_flag == 1 || auto_flag == 1 || manual_flag == 1){					//manual_flag, record_flag, flag, auto_flag are updated in other portions of the code 
             if(flag == 0) move_forward();
@@ -586,10 +590,39 @@ void Task1code( void * pvParameters ){
             else if(flag == 2) move_right();
             else if(flag == 3) move_back();
             else move_stop();
-        }
-        else
+            
+            if(xQueueReceive(gpio_evt_queue, &io_num, portMAX_DELAY)) {
+                printf("GPIO[%d] intr, val: %d\n", io_num, gpio_get_level(io_num)); 
+                if (io_num == LEFT_ENCODERA){
+                    if (flag == 0 || flag == 2)
+                        leftTicks++;
+                    else if (flag == 3 || flag == 1)
+                        leftTicks--;
+                    if (leftTicks >= ENCODERresolution){
+                        leftRot++;                          //see if we can reset rotation in server.c
+                        leftTicks=0;
+                    }
+                }
+                else if (io_num == RIGHT_ENCODERA){
+                    if (flag == 0 || flag == 1)
+                        rightTicks++;
+                    else if (flag == 3 || flag == 2)
+                        rightTicks--;
+                    if (rightTicks >= ENCODERresolution){
+                        rightRot++;
+                        rightTicks=0;
+                    }
+                }
+            }      
+        }else
             move_stop();
     }
+}
+
+void IRAM_ATTR gpio_encoder_isr_handler(void* arg)
+{
+    uint32_t gpio_num = (uint32_t) arg;
+    xQueueSendFromISR(gpio_evt_queue, &gpio_num, NULL);
 }
 
 /*Main function that gets called once at the start when ESP boots*/
@@ -597,7 +630,6 @@ void app_main(void)
 {
     static httpd_handle_t server = NULL;
     init_spiffs();  //Initialize SPIFFS File System
-    init_pwm();     //Initialize PWM channel
     conn_flag = main_update();  //Update the necessary variables
     if(conn_flag == 0)          //Check the returned value         
         init_sap();				//Start SAP mode
