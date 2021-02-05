@@ -2,15 +2,36 @@
 #include "algo.h"
 
 int Lpwm = 0; 
-int Rpwm = 0;     //Always remember you can't define the variable in .h file                         
+int Rpwm = 0;     //Always remember you can't define the variable in .h file     
 
 int leftRot = 0;
 int leftTicks = 0;
 int rightRot = 0;
 int rightTicks = 0;
 
+double left_vel = 0;
+double right_vel = 0;
+
+double prev_disL = 0;
+double prev_disR = 0;
+int64_t prev_tim = 0;
+
+double current_errorL = 0;
+double accumulated_errorL = 0;
+double prev_errorL = 0;
+double current_errorR = 0;
+double accumulated_errorR = 0;
+double prev_errorR = 0;
+
+
+double Kp = 1;  //common gains for both the PID blocks for now
+double Kd = 1/sampleTimeInSec;
+double Ki = 1*sampleTimeInSec;
+
+
+
 xQueueHandle gpio_evt_queue = NULL;
-/*To initialize the encoder and sensor input pins*/ 
+/*To initialize the motor direction, encoder, and sensor I/O pins*/ 
 void init_gpio()
 {
     ENCODER.intr_type = GPIO_INTR_ANYEDGE;      //Change according to the resolution, anyedge for quadrature when using both the pins
@@ -29,7 +50,8 @@ void init_gpio()
     gpio_intr_disable(LEFT_ENCODERA);  //Enabled when recording or in auto mode  
     gpio_intr_disable(RIGHT_ENCODERA);
 
-    //gpio_isr_handler_remove(GPIO_INPUT_IO_0);  //remove isr handler for gpio number
+    gpio_set_direction(LEFT_MOTOR_DIRECTION, GPIO_MODE_OUTPUT);
+    gpio_set_direction(RIGHT_MOTOR_DIRECTION, GPIO_MODE_OUTPUT);
 }
 
 /*Used for setting up PWM Channel (Ref: Official Github Repo)*/
@@ -63,34 +85,92 @@ void init_pwm()
 
 /*The following are dummy functions for movement of the bot*/
 void move_forward()
-{
-    ledc_set_duty(motorL.speed_mode, motorL.channel, 4000);   //Update the PWM value to be used by this lED Channel.
+{   
+    if((esp_timer_get_time() - prev_tim) >= sampleTime){
+        left_vel = ((leftRot*ENCODERresolution + leftTicks)*wheeldist_perTick - prev_disL)/0.1;  // VELCOTIY IN m/sec
+        right_vel = ((rightRot*ENCODERresolution + rightTicks)*wheeldist_perTick - prev_disR)/0.1;
+        prev_disL = left_vel*0.1 + prev_disL;
+        prev_disR = right_vel*0.1 + prev_disR;
+
+        Lpwm = pid_velLeft(left_vel, DEFAULT_LIN_SPEED);
+        Rpwm = pid_velRight(right_vel, DEFAULT_LIN_SPEED);
+        prev_tim = esp_timer_get_time();
+    }
+
+    gpio_set_level(LEFT_MOTOR_DIRECTION, 1);    //BOTH IN SAME DIRECTION
+    gpio_set_level(RIGHT_MOTOR_DIRECTION, 1);
+    ledc_set_duty(motorL.speed_mode, motorL.channel, Lpwm);   //Update the PWM value to be used by this lED Channel.
     ledc_update_duty(motorL.speed_mode, motorL.channel);      //Use the Updated PWM values
-    ledc_set_duty(motorR.speed_mode, motorR.channel, 4000);
+    ledc_set_duty(motorR.speed_mode, motorR.channel, Rpwm);
     ledc_update_duty(motorR.speed_mode, motorR.channel);
 }                                                                       
 
 void move_left()
-{
-    ledc_set_duty(motorL.speed_mode, motorL.channel, 2000);
+{   
+    if((esp_timer_get_time() - prev_tim) >= sampleTime){
+        left_vel = ((leftRot*ENCODERresolution + leftTicks)*wheeldist_perTick - prev_disL)/0.1;  // VELCOTIY IN rad/sec
+        prev_disL = left_vel*0.1 + prev_disL;
+        left_vel = left_vel*2/wheelbase;    //angular velocity
+        
+        right_vel = ((rightRot*ENCODERresolution + rightTicks)*wheeldist_perTick - prev_disR)/0.1;
+        prev_disR = right_vel*0.1 + prev_disR;
+        right_vel = right_vel*2/wheelbase;
+
+        Lpwm = pid_velLeft(left_vel, DEFAULT_ANG_SPEED);
+        Rpwm = pid_velRight(right_vel, DEFAULT_ANG_SPEED);
+        prev_tim = esp_timer_get_time();
+    }
+
+    gpio_set_level(LEFT_MOTOR_DIRECTION, 1);    //IN OPP DIRECTION
+    gpio_set_level(RIGHT_MOTOR_DIRECTION, 0);
+    ledc_set_duty(motorL.speed_mode, motorL.channel, Lpwm);
     ledc_update_duty(motorL.speed_mode, motorL.channel);
-    ledc_set_duty(motorR.speed_mode, motorR.channel, 4000);
+    ledc_set_duty(motorR.speed_mode, motorR.channel, Rpwm);
     ledc_update_duty(motorR.speed_mode, motorR.channel);
 }
 
 void move_right()
 {
-    ledc_set_duty(motorL.speed_mode, motorL.channel, 1000);
+    if((esp_timer_get_time() - prev_tim) >= sampleTime){
+        left_vel = ((leftRot*ENCODERresolution + leftTicks)*wheeldist_perTick - prev_disL)/0.1;  // VELCOTIY IN rad/sec
+        prev_disL = left_vel*0.1 + prev_disL;
+        left_vel = left_vel*2/wheelbase;    //angular velocity
+        
+        right_vel = ((rightRot*ENCODERresolution + rightTicks)*wheeldist_perTick - prev_disR)/0.1;
+        prev_disR = right_vel*0.1 + prev_disR;
+        right_vel = right_vel*2/wheelbase;
+
+        Lpwm = pid_velLeft(left_vel, DEFAULT_ANG_SPEED);
+        Rpwm = pid_velRight(right_vel, DEFAULT_ANG_SPEED);
+        prev_tim = esp_timer_get_time();
+    }    
+
+    gpio_set_level(LEFT_MOTOR_DIRECTION, 0);    //IN OPP DIRECTION
+    gpio_set_level(RIGHT_MOTOR_DIRECTION, 1);
+    ledc_set_duty(motorL.speed_mode, motorL.channel, Lpwm);
     ledc_update_duty(motorL.speed_mode, motorL.channel);
-    ledc_set_duty(motorR.speed_mode, motorR.channel, 2000);
+    ledc_set_duty(motorR.speed_mode, motorR.channel, Rpwm);
     ledc_update_duty(motorR.speed_mode, motorR.channel);
 }
 
 void move_back()
-{
-    ledc_set_duty(motorL.speed_mode, motorL.channel, 400);
+{   
+    if((esp_timer_get_time() - prev_tim) >= sampleTime){
+        left_vel = ((leftRot*ENCODERresolution + leftTicks)*wheeldist_perTick - prev_disL)/0.1;  // VELCOTIY IN m/sec
+        right_vel = ((rightRot*ENCODERresolution + rightTicks)*wheeldist_perTick - prev_disR)/0.1;
+        prev_disL = left_vel*0.1 + prev_disL;
+        prev_disR = right_vel*0.1 + prev_disR;
+
+        Lpwm = pid_velLeft(left_vel, DEFAULT_LIN_SPEED);
+        Rpwm = pid_velRight(right_vel, DEFAULT_LIN_SPEED);
+        prev_tim = esp_timer_get_time();
+    }
+
+    gpio_set_level(LEFT_MOTOR_DIRECTION, 0);    //BOTH IN SAME DIRECTION
+    gpio_set_level(RIGHT_MOTOR_DIRECTION, 0);
+    ledc_set_duty(motorL.speed_mode, motorL.channel, Lpwm);
     ledc_update_duty(motorL.speed_mode, motorL.channel);
-    ledc_set_duty(motorR.speed_mode, motorR.channel, 4000);
+    ledc_set_duty(motorR.speed_mode, motorR.channel, Rpwm);
     ledc_update_duty(motorR.speed_mode, motorR.channel);
 }
 
@@ -102,6 +182,47 @@ void move_stop()
     ledc_update_duty(motorR.speed_mode, motorR.channel);
 }
 
+void init_pid(){
+    current_errorL = 0;
+    accumulated_errorL = 0;
+    prev_errorL = 0;
+    prev_disL = 0;
+                        prev_tim = 0;
+    current_errorR = 0;
+    accumulated_errorR = 0;
+    prev_errorR = 0;
+    prev_disR = 0;
+}
+
+int pid_velLeft(double actualvel, double desiredvel){
+    current_errorL = desiredvel - actualvel;
+    accumulated_errorL += current_errorL;
+    double pid = Kp*current_errorL + Kd*(current_errorL-prev_errorL) + Ki*accumulated_errorL;
+    //Main part after this is finding the maximum value of PID(after capping) and mapping it to the PWM 
+    if (pid>10)
+        pid=10;
+    else if (pid<0)
+        pid=0;
+    prev_errorL = current_errorL;
+    return map1(pid, 0, 10, 0, 4095);   //set maximum PWM as the top speed required
+}
+
+int pid_velRight(double actualvel, double desiredvel){
+    current_errorR = desiredvel - actualvel;
+    accumulated_errorR += current_errorR;
+    double pid = Kp*current_errorR + Kd*(current_errorR-prev_errorR) + Ki*accumulated_errorR;
+    if (pid>10)
+        pid=10;
+    else if (pid<0)
+        pid=0;
+    prev_errorR = current_errorR;
+    //Main part after this is finding the maximum value of PID(after capping) and mapping it to the PWM 
+    return map1(pid, 0, 10, 0, 4095);
+}
+
+int map1(float x, float in_min, float in_max, int out_min, int out_max) {
+  return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
+}
 /*Get the character to be used for storing the direction*/
 char determine(int local_flag)
 {

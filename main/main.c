@@ -594,27 +594,44 @@ void Task1code( void * pvParameters ){
             if(xQueueReceive(gpio_evt_queue, &io_num, portMAX_DELAY)) {
                 printf("GPIO[%d] intr, val: %d\n", io_num, gpio_get_level(io_num)); 
                 if (io_num == LEFT_ENCODERA){
-                    if (flag == 0 || flag == 2)
-                        leftTicks++;
-                    else if (flag == 3 || flag == 1)
-                        leftTicks--;
+                    leftTicks++;
                     if (leftTicks >= ENCODERresolution){
-                        leftRot++;                          //see if we can reset rotation in server.c
+                        leftRot++;                         
                         leftTicks=0;
                     }
+                    // if (flag == 0 || flag == 2)   //commenting this cause we don't really need ve- ticks
+                    //     leftTicks++;
+                    // else if (flag == 3 || flag == 1)
+                    //     leftTicks--;
+                    // if (leftTicks >= ENCODERresolution){
+                    //     leftRot++;                         
+                    //     leftTicks=0;
+                    // }else if (leftTicks <= (-1*ENCODERresolution)){
+                    //     leftRot--;                         
+                    //     leftTicks=0;
+                    // }
                 }
                 else if (io_num == RIGHT_ENCODERA){
-                    if (flag == 0 || flag == 1)
-                        rightTicks++;
-                    else if (flag == 3 || flag == 2)
-                        rightTicks--;
+                    rightTicks++;
                     if (rightTicks >= ENCODERresolution){
                         rightRot++;
                         rightTicks=0;
                     }
+                    // if (flag == 0 || flag == 1)
+                    //     rightTicks++;
+                    // else if (flag == 3 || flag == 2)
+                    //     rightTicks--;
+                    // if (rightTicks >= ENCODERresolution){
+                    //     rightRot++;
+                    //     rightTicks=0;
+                    // }else if (rightTicks <= (-1*ENCODERresolution)){
+                    //     rightRot--;                         
+                    //     rightTicks=0;
+                    // }
                 }
             }      
-        }else
+        }
+        else
             move_stop();
     }
 }

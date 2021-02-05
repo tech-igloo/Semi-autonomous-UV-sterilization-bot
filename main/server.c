@@ -707,15 +707,16 @@ esp_err_t handle_forward(httpd_req_t *req)
     time_duration = (curr_mili - prev_mili)/1000;;      //the time for which it was going in the previous direction(in ms)
     ESP_LOGI(TAG,"%c%f",det,time_duration);
     prev_mili = esp_timer_get_time();
+    
     /*Code when interrupts are implemented*/
     /* 
     if(flag == 0 || flag == 3){                      //for forward and backward
-        time_duration = (leftRot*ENCODERresolution + leftTicks)*wheelCircu_perTick;  //Could have checked right instead as well
+        time_duration = (abs(leftRot)*ENCODERresolution + abs(leftTicks))*wheeldist_perTick;  //Could have checked right instead as well
     }
     else if(flag == 1 || flag == 2){                  //to calculated angle
-        time_duration = (leftRot*ENCODERresolution + leftTicks)*wheelCircu_perTick;  //Could have checked right instead here as well, this gives us the arc length
-        time_duration = (time_duration*2)/wheelbase;  //angle= arc/radius gives angle in 2pi
-        time_duration = time_duration%(2*M_2_PI)
+        time_duration = (abs(leftRot)*ENCODERresolution + abs(leftTicks))*wheeldist_perTick;  //Could have checked right instead here as well, this gives us the arc length
+        time_duration = (time_duration*2)/wheelbase;  //angle= arc/radius gives angle in radians
+        time_duration = time_duration%(2*M_2_PI)      //if more than 2pi then take the remainder
     }
     ESP_LOGI(TAG,"%c%f",det,time_duration);
     leftRot = 0;     //Advantage of incremental encoders
@@ -723,8 +724,9 @@ esp_err_t handle_forward(httpd_req_t *req)
     rightRot = 0;
     rightTicks = 0;
     */
-
+    init_pid();
     flag = 0;                       //denotes that is now going in forward direction
+
     char* resp = SendHTML(flag);	//the HTML code for displaying the webpage
     httpd_resp_send(req, resp, strlen(resp));	//display the webpage
     free(resp);
@@ -761,11 +763,11 @@ esp_err_t handle_left(httpd_req_t *req)
     /*Code when interrupts are implemented*/
     /* 
     if(flag == 0 || flag == 3){                      //for forward and backward
-        time_duration = (leftRot*ENCODERresolution + leftTicks)*wheelCircu_perTick;  //Could have checked right instead as well
+        time_duration = (abs(leftRot)*ENCODERresolution + abs(leftTicks))*wheeldist_perTick;  //Could have checked right instead as well
     }
     else if(flag == 1 || flag == 2){                  //to calculated angle
-        time_duration = (leftRot*ENCODERresolution + leftTicks)*wheelCircu_perTick;  //Could have checked right instead here as well, this gives us the arc length
-        time_duration = (time_duration*2)/wheelbase;  //angle= arc/radius gives angle in 2pi
+        time_duration = (abs(leftRot)*ENCODERresolution + abs(leftTicks))*wheeldist_perTick;  //Could have checked right instead here as well, this gives us the arc length
+        time_duration = (time_duration*2)/wheelbase;  //angle= arc/radius gives angle in radians
         time_duration = time_duration%(2*M_2_PI)
     }
     ESP_LOGI(TAG,"%c%f",det,time_duration);
@@ -774,8 +776,9 @@ esp_err_t handle_left(httpd_req_t *req)
     rightRot = 0;
     rightTicks = 0;
     */
-    
+    init_pid();
     flag = 1;                       //denotes that is now going in left direction
+
     char* resp = SendHTML(flag);
     httpd_resp_send(req, resp, strlen(resp));
     free(resp);
@@ -811,11 +814,11 @@ esp_err_t handle_right(httpd_req_t *req)
     /*Code when interrupts are implemented*/
     /* 
     if(flag == 0 || flag == 3){                      //for forward and backward
-        time_duration = (leftRot*ENCODERresolution + leftTicks)*wheelCircu_perTick;  //Could have checked right instead as well
+        time_duration = (abs(leftRot)*ENCODERresolution + abs(leftTicks))*wheeldist_perTick;  //Could have checked right instead as well
     }
     else if(flag == 1 || flag == 2){                  //to calculated angle
-        time_duration = (leftRot*ENCODERresolution + leftTicks)*wheelCircu_perTick;  //Could have checked right instead here as well, this gives us the arc length
-        time_duration = (time_duration*2)/wheelbase;  //angle= arc/radius gives angle in 2pi
+        time_duration = (abs(leftRot)*ENCODERresolution + abs(leftTicks))*wheeldist_perTick;  //Could have checked right instead here as well, this gives us the arc length
+        time_duration = (time_duration*2)/wheelbase;  //angle= arc/radius gives angle in radians
         time_duration = time_duration%(2*M_2_PI)
     }
     ESP_LOGI(TAG,"%c%f",det,time_duration);
@@ -824,8 +827,9 @@ esp_err_t handle_right(httpd_req_t *req)
     rightRot = 0;
     rightTicks = 0;
     */    
-    
+    init_pid();
     flag = 2;               //Now going in right direction, everything else is same as previous
+    
     char* resp = SendHTML(flag);
     httpd_resp_send(req, resp, strlen(resp));
     free(resp);
@@ -861,11 +865,11 @@ esp_err_t handle_back(httpd_req_t *req)
     /*Code when interrupts are implemented*/
     /* 
     if(flag == 0 || flag == 3){                      //for forward and backward
-        time_duration = (leftRot*ENCODERresolution + leftTicks)*wheelCircu_perTick;  //Could have checked right instead as well
+        time_duration = (abs(leftRot)*ENCODERresolution + abs(leftTicks))*wheeldist_perTick;  //Could have checked right instead as well
     }
     else if(flag == 1 || flag == 2){                  //to calculated angle
-        time_duration = (leftRot*ENCODERresolution + leftTicks)*wheelCircu_perTick;  //Could have checked right instead here as well, this gives us the arc length
-        time_duration = (time_duration*2)/wheelbase;  //angle= arc/radius gives angle in 2pi
+        time_duration = (abs(leftRot)*ENCODERresolution + abs(leftTicks))*wheeldist_perTick;  //Could have checked right instead here as well, this gives us the arc length
+        time_duration = (time_duration*2)/wheelbase;  //angle= arc/radius gives angle in radians
         time_duration = time_duration%(2*M_2_PI)
     }
     ESP_LOGI(TAG,"%c%f",det,time_duration);
@@ -874,8 +878,9 @@ esp_err_t handle_back(httpd_req_t *req)
     rightRot = 0;
     rightTicks = 0;
     */    
-
+    init_pid();
     flag = 3;       //Now going in back direction, everything else same as forward and left and right
+ 
     char* resp = SendHTML(flag);
     httpd_resp_send(req, resp, strlen(resp));
     free(resp);
@@ -911,11 +916,11 @@ esp_err_t handle_stop(httpd_req_t *req)
     /*Code when interrupts are implemented*/
     /* 
     if(flag == 0 || flag == 3){                      //for forward and backward
-        time_duration = (leftRot*ENCODERresolution + leftTicks)*wheelCircu_perTick;  //Could have checked right instead as well
+        time_duration = (abs(leftRot)*ENCODERresolution + abs(leftTicks))*wheeldist_perTick;  //Could have checked right instead as well
     }
     else if(flag == 1 || flag == 2){                  //to calculated angle
-        time_duration = (leftRot*ENCODERresolution + leftTicks)*wheelCircu_perTick;  //Could have checked right instead here as well, this gives us the arc length
-        time_duration = (time_duration*2)/wheelbase;  //angle= arc/radius gives angle in 2pi
+        time_duration = (abs(leftRot)*ENCODERresolution + abs(leftTicks))*wheeldist_perTick;  //Could have checked right instead here as well, this gives us the arc length
+        time_duration = (time_duration*2)/wheelbase;  //angle= arc/radius gives angle in radians
         time_duration = time_duration%(2*M_2_PI)
     }
     else
@@ -928,8 +933,9 @@ esp_err_t handle_stop(httpd_req_t *req)
     */
     
     flag = -1;   //Stop the bot as well
-    
-    gpio_intr_disable(LEFT_ENCODERA);  //Disabled once recorded  
+    init_pid();
+
+    gpio_intr_disable(LEFT_ENCODERA);  //Disabled interrupt once recorded  
     gpio_intr_disable(RIGHT_ENCODERA);
 
     if(record_flag == 1)
@@ -968,11 +974,11 @@ esp_err_t handle_pause(httpd_req_t *req)
     /*Code when interrupts are implemented*/
     /* 
     if(flag == 0 || flag == 3){                      //for forward and backward
-        time_duration = (leftRot*ENCODERresolution + leftTicks)*wheelCircu_perTick;  //Could have checked right instead as well
+        time_duration = (abs(leftRot)*ENCODERresolution + abs(leftTicks))*wheeldist_perTick;  //Could have checked right instead as well
     }
     else if(flag == 1 || flag == 2){                  //to calculated angle
-        time_duration = (leftRot*ENCODERresolution + leftTicks)*wheelCircu_perTick;  //Could have checked right instead here as well, this gives us the arc length
-        time_duration = (time_duration*2)/wheelbase;  //angle= arc/radius gives angle in 2pi
+        time_duration = (abs(leftRot)*ENCODERresolution + abs(leftTicks))*wheeldist_perTick;  //Could have checked right instead here as well, this gives us the arc length
+        time_duration = (time_duration*2)/wheelbase;  //angle= arc/radius gives angle in radians
         time_duration = time_duration%(2*M_2_PI)
     }
     ESP_LOGI(TAG,"%c%f",det,time_duration);
@@ -983,6 +989,8 @@ esp_err_t handle_pause(httpd_req_t *req)
     */
     
     flag = -1;
+    init_pid();
+
     char* resp = manual_mode();
     httpd_resp_send(req, resp, strlen(resp));
     free(resp);

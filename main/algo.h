@@ -25,10 +25,12 @@
 #define ULTRA5
 
 #define ENCODERresolution 1200              //The resolution of encoder, current using any edge single channel
-#define wheeldist_perTick 0.0445           //in centimeters
-#define wheelbase 30                   //in centimeters
-#define DEFAULT_LIN_SPEED 1.5               // meter/sec    //Temporary constants I used. To be deleted when encoder feedback is used
-#define DEFAULT_ANG_SPEED 10                    //Temporary constants I used. To be deleted when encoder feedback is used
+#define wheeldist_perTick 0.000445           //in meters
+#define wheelbase 0.30                   //in meters
+#define DEFAULT_LIN_SPEED 0.03               // meter/sec    //Temporary constants I used. To be deleted when encoder feedback is used
+#define DEFAULT_ANG_SPEED 0.2            //rad/sec        //Temporary constants I used. To be deleted when encoder feedback is used
+#define sampleTime 100000     //In microsec
+#define sampleTimeInSec 0.1
 
 extern int Lpwm;                       //Variables to pass pwm to the LEDC set duty function
 extern int Rpwm;  
@@ -36,6 +38,24 @@ extern int leftRot;
 extern int leftTicks;
 extern int rightRot;
 extern int rightTicks;
+extern double left_vel;
+extern double right_vel;
+extern double prev_disL;
+extern double prev_disR;
+extern int64_t prev_tim;
+
+extern double accumulated_errorL;             //integral term in PID formula
+extern double current_errorL;                 //current error in PID formula
+extern double prev_errorL;                    //error in the previous time step
+extern double accumulated_errorR;             
+extern double current_errorR;                 
+extern double prev_errorR;                    
+
+extern int pid_flag;                        //flag that signifies that the PID controller's job is done
+extern double Kp;
+extern double Kd;
+extern double Ki;
+
 
 extern xQueueHandle gpio_evt_queue;
 
@@ -56,6 +76,11 @@ void move_left();
 void move_right();
 void move_back();
 void move_stop();
+
+void init_pid();
+int pid_velLeft(double actualvel, double desiredvel);
+int pid_velRight(double actualvel, double desiredvel);
+int map1(float x, float in_min, float in_max, int out_min, int out_max);
 
 char determine(int local_flag);
 esp_err_t convert_paths(int n);
