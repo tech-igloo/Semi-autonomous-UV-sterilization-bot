@@ -25,23 +25,26 @@
 #define ULTRA5
 
 #define ENCODERresolution 1200              //The resolution of encoder, current using any edge single channel
-#define wheeldist_perTick 0.000445           //in meters
-#define wheelbase 0.30                   //in meters
-#define DEFAULT_LIN_SPEED 0.03               // meter/sec    //Temporary constants I used. To be deleted when encoder feedback is used
-#define DEFAULT_ANG_SPEED 0.2            //rad/sec        //Temporary constants I used. To be deleted when encoder feedback is used
-#define sampleTime 100000     //In microsec
+#define wheeldist_perTick 0.000445          //in meters
+#define wheelbase 0.30                      //in meters
+#define DEFAULT_LIN_SPEED 0.03              //meter/sec    
+#define DEFAULT_ANG_SPEED 0.2               //rad/sec       
+#define sampleTime 100000                   //in microsec
 #define sampleTimeInSec 0.1
 
 extern int Lpwm;                       //Variables to pass pwm to the LEDC set duty function
 extern int Rpwm;  
-extern int leftRot;
+
+extern int leftRot;                    //Variable to take care to the encoder feedback
 extern int leftTicks;
 extern int rightRot;
 extern int rightTicks;
-extern double left_vel;
+
+extern double left_vel;                //Variable that store instantaneous velocity
 extern double right_vel;
 extern double prev_disL;
 extern double prev_disR;
+
 extern int64_t prev_tim;
 
 extern double accumulated_errorL;             //integral term in PID formula
@@ -51,8 +54,9 @@ extern double accumulated_errorR;
 extern double current_errorR;                 
 extern double prev_errorR;                    
 
-extern int pid_flag;                        //flag that signifies that the PID controller's job is done
-extern double Kp;
+//extern int pid_flag;                        //flag that signifies that the PID controller's job is done
+
+extern double Kp;                //Common gains for now
 extern double Kd;
 extern double Ki;
 

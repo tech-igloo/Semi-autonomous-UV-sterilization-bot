@@ -24,13 +24,12 @@ double accumulated_errorR = 0;
 double prev_errorR = 0;
 
 
-double Kp = 1;  //common gains for both the PID blocks for now
+double Kp = 1;                   //common gains for both the PID blocks for now
 double Kd = 1/sampleTimeInSec;
 double Ki = 1*sampleTimeInSec;
 
-
-
 xQueueHandle gpio_evt_queue = NULL;
+
 /*To initialize the motor direction, encoder, and sensor I/O pins*/ 
 void init_gpio()
 {
@@ -83,16 +82,17 @@ void init_pwm()
     ledc_channel_config(&motorR);
 }
 
-/*The following are dummy functions for movement of the bot*/
+/*The following are the actuation functions for movement of the bot with velocity feedback control*/
 void move_forward()
 {   
-    if((esp_timer_get_time() - prev_tim) >= sampleTime){
-        left_vel = ((leftRot*ENCODERresolution + leftTicks)*wheeldist_perTick - prev_disL)/0.1;  // VELCOTIY IN m/sec
+    if((esp_timer_get_time() - prev_tim) >= sampleTime) //Running the PID at a specific frequency
+    {
+        left_vel = ((leftRot*ENCODERresolution + leftTicks)*wheeldist_perTick - prev_disL)/0.1;  // 9Current_dis-prev_dis)/time VELCOTIY IN m/sec
         right_vel = ((rightRot*ENCODERresolution + rightTicks)*wheeldist_perTick - prev_disR)/0.1;
         prev_disL = left_vel*0.1 + prev_disL;
         prev_disR = right_vel*0.1 + prev_disR;
 
-        Lpwm = pid_velLeft(left_vel, DEFAULT_LIN_SPEED);
+        Lpwm = pid_velLeft(left_vel, DEFAULT_LIN_SPEED);     //values after being mapped to PWM range
         Rpwm = pid_velRight(right_vel, DEFAULT_LIN_SPEED);
         prev_tim = esp_timer_get_time();
     }
@@ -182,18 +182,19 @@ void move_stop()
     ledc_update_duty(motorR.speed_mode, motorR.channel);
 }
 
+/*To reset the PID error variable*/ 
 void init_pid(){
     current_errorL = 0;
     accumulated_errorL = 0;
     prev_errorL = 0;
     prev_disL = 0;
-                        prev_tim = 0;
     current_errorR = 0;
     accumulated_errorR = 0;
     prev_errorR = 0;
     prev_disR = 0;
 }
 
+/*Simple PID funtions, can be upgraded while testing according to the performance. Like integral windup etc.*/
 int pid_velLeft(double actualvel, double desiredvel){
     current_errorL = desiredvel - actualvel;
     accumulated_errorL += current_errorL;
@@ -220,9 +221,12 @@ int pid_velRight(double actualvel, double desiredvel){
     return map1(pid, 0, 10, 0, 4095);
 }
 
-int map1(float x, float in_min, float in_max, int out_min, int out_max) {
+/*Funtion to map pid value to the PWM range*/
+int map1(float x, float in_min, float in_max, int out_min, int out_max) 
+{
   return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
 }
+
 /*Get the character to be used for storing the direction*/
 char determine(int local_flag)
 {
@@ -262,11 +266,8 @@ esp_err_t convert_paths(int n){
     {
         strcpy(str, "\0");
         fgets(str, LINE_LEN, f_r);
-        //if(!feof(f_r))
-        //{
         // ESP_LOGI(TAG, "%s", str);
         // ESP_LOGI(TAG, "Length: %d", strlen(str));
-        //}
         strcat(aux, str);
         if (count_flag){
             linectr++;
@@ -277,7 +278,7 @@ esp_err_t convert_paths(int n){
             {
                 strcpy(aux1,aux);
                 ESP_LOGI(TAG, "%s", aux1);
-                //Length calc
+                //Length calculation for dynamic allocation
                 char* temp_token = strtok(aux, "\t");
                 while(temp_token!=NULL)
                 {
@@ -290,17 +291,16 @@ esp_err_t convert_paths(int n){
                 char* result = (char *)calloc((len*2*10+1),sizeof(char));
                 strcpy(result, "");
                 ESP_LOGI(TAG, "Length: %d", len*4*9+1);
-                //result string storage
+                //Result string storage
                 char* token = strtok(aux1, "\t");
                 while(token!=NULL)
                 {
                     ch = token[0];
                     token++;
-                    val = atof(token);
+                    val = atof(token);    //val is in meters 
                     if(ch == 'f'){
-                        val = DEFAULT_LIN_SPEED * val/1000.0;   //units needs to be change with encoder
-                        current.x = prev.x + val*cos(prev.theta*3.14/180.0);
-                        current.y = prev.y + val*sin(prev.theta*3.14/180.0);
+                        current.x = prev.x + val*cos(prev.theta);
+                        current.y = prev.y + val*sin(prev.theta);
                         ESP_LOGI(TAG, "(%f, %f)", current.x, current.y);
                         strcpy(temp, "");
                         snprintf(temp, 9, "%f", current.x);
@@ -314,9 +314,8 @@ esp_err_t convert_paths(int n){
                         prev = current;
                     }
                     else if(ch == 'b'){
-                        val = DEFAULT_LIN_SPEED * val/1000.0;
-                        current.x = prev.x - val*cos(prev.theta*3.14/180.0);  //don't convert as already in pi when using encoders
-                        current.y = prev.y - val*sin(prev.theta*3.14/180.0);
+                        current.x = prev.x - val*cos(prev.theta);  //don't convert as already in radians when using encoders
+                        current.y = prev.y - val*sin(prev.theta);
                         ESP_LOGI(TAG, "(%f, %f)", current.x, current.y);
                         strcpy(temp, "");
                         snprintf(temp, 9, "%f", current.x);
@@ -330,11 +329,10 @@ esp_err_t convert_paths(int n){
                         prev = current;
                     }
                     else if(ch == 'r'){
-                        val = DEFAULT_ANG_SPEED * val/1000.0;    //you'll get it in 2pi terms itself
+                        //val is in radian only
                         prev.theta = prev.theta + val;
                     }
                     else if(ch == 'l'){
-                        val = DEFAULT_ANG_SPEED * val/1000.0;
                         prev.theta = prev.theta - val;
                     }
                     token = strtok(NULL, "\t");
@@ -356,7 +354,7 @@ esp_err_t convert_paths(int n){
     return ESP_OK;
 }
 
-/*Execute the local_flag th path*/
+/*Execute the local_flag th path*/ //auto mode, need to enable the interrupts and use the algorithm
 esp_err_t get_path(int local_flag)
 {
     char str[LINE_LEN], temp[500] = ""; // Change this temp to calloc
