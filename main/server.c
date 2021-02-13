@@ -719,10 +719,6 @@ esp_err_t handle_forward(httpd_req_t *req)
         time_duration = fmod(time_duration, 2*M_PI);      //if more than 2pi then take the remainder
     }
     ESP_LOGI(TAG,"%c%f",det,time_duration);
-    leftRot = 0;     //Advantage of incremental encoders
-    leftTicks = 0;
-    rightRot = 0;
-    rightTicks = 0;
     
     init_pid();                    //reset the PID variables
     flag = 0;                       //denotes that is now going in forward direction
@@ -766,10 +762,6 @@ esp_err_t handle_left(httpd_req_t *req)
         time_duration = fmod(time_duration, 2*M_PI);
     }
     ESP_LOGI(TAG,"%c%f",det,time_duration);
-    leftRot = 0;     //Advantage of incremental encoders
-    leftTicks = 0;
-    rightRot = 0;
-    rightTicks = 0;
 
     init_pid();
     flag = 1;                       //denotes that is now going in left direction
@@ -803,7 +795,7 @@ esp_err_t handle_right(httpd_req_t *req)
     char det = determine(flag);
 
     /*Code when interrupts are implemented*/
-    //Dis is store in meters and angle in radians
+    //Dis is stored in meters and angle in radians
     if(flag == 0 || flag == 3){                      //for forward and backward
         time_duration = (abs(leftRot)*ENCODERresolution + abs(leftTicks))*wheeldist_perTick;  //Could have checked right instead as well
     }
@@ -813,10 +805,6 @@ esp_err_t handle_right(httpd_req_t *req)
         time_duration = fmod(time_duration, 2*M_PI);
     }
     ESP_LOGI(TAG,"%c%f",det,time_duration);
-    leftRot = 0;     //Advantage of incremental encoders
-    leftTicks = 0;
-    rightRot = 0;
-    rightTicks = 0;
 
     init_pid();
     flag = 2;               //Now going in right direction, everything else is same as previous
@@ -859,10 +847,6 @@ esp_err_t handle_back(httpd_req_t *req)
         time_duration = fmod(time_duration, 2*M_PI);
     }
     ESP_LOGI(TAG,"%c%f",det,time_duration);
-    leftRot = 0;     //Advantage of incremental encoders
-    leftTicks = 0;
-    rightRot = 0;
-    rightTicks = 0;
 
     init_pid();
     flag = 3;       //Now going in back direction, everything else same as forward and left and right
@@ -907,10 +891,6 @@ esp_err_t handle_stop(httpd_req_t *req)
     else
         time_duration = 0;                          //special case for stop
     ESP_LOGI(TAG,"%c%f",det,time_duration);
-    leftRot = 0;     //Advantage of incremental encoders
-    leftTicks = 0;
-    rightRot = 0;
-    rightTicks = 0;
     
     flag = -1;   //Stop the bot as well
     init_pid();
@@ -957,11 +937,7 @@ esp_err_t handle_pause(httpd_req_t *req)
         time_duration = fmod(time_duration, 2*M_PI);
     }
     ESP_LOGI(TAG,"%c%f",det,time_duration);
-    leftRot = 0;     //Advantage of incremental encoders
-    leftTicks = 0;
-    rightRot = 0;
-    rightTicks = 0;
-    
+   
     flag = -1;
     init_pid();
 

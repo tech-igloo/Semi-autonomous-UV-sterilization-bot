@@ -91,4 +91,11 @@ esp_err_t convert_paths(int n);
 esp_err_t get_path(int local_flag);
 void IRAM_ATTR gpio_encoder_isr_handler(void* arg);
 
+void updateParams(double, double);
+void actuationAuto();
+void normal_motion();
+void rotate();
+void forward();
+void update_stopPoint();
+
 #endif

@@ -23,10 +23,29 @@ double current_errorR = 0;
 double accumulated_errorR = 0;
 double prev_errorR = 0;
 
-
 double Kp = 1;                   //common gains for both the PID blocks for now
 double Kd = 1/sampleTimeInSec;
 double Ki = 1*sampleTimeInSec;
+
+static double angle_required = 0;                //angle that the bot needs to rotate to align itself with its destination point
+static double dist_required = 0;                 //distance from stop point that the bot needs to travel to reach the destination point
+static int rotating_flag = 1;                   //flag that signifies whether the bot should rotate or move along a straight line
+
+static double stop_point[2] = {0};                 //the position of the bot from which distance travlled is being calculated
+static double prev_point[2] = {0};               //the next point that the bot needs to travel to
+static double current_point[2] = {0};            //current co-ordinates of the bot*/
+
+static double dist_traversed = 0;                //distance travlled by bot along straight line(+ve for forward and -ve for negative)
+static double angle_rotated = 0;                 //angle rotated by bot(+ve for clockwise and -ve for anticlockwise)
+static int doneFlag = 0;
+
+//static double prev_time = 0;                     //stores the previous time step, gets updated to current time after sysCall_sensing
+
+// static double time_flag = 0;
+// static int detect_flag = 0;
+static int run = 0;
+
+//static int obstacle_flag[5] = {0};              //To record ultrasonic value
 
 xQueueHandle gpio_evt_queue = NULL;
 
@@ -192,6 +211,13 @@ void init_pid(){
     accumulated_errorR = 0;
     prev_errorR = 0;
     prev_disR = 0;
+    
+    doneFlag = 0;
+
+    leftRot = 0;     //Advantage of incremental encoders
+    leftTicks = 0;
+    rightRot = 0;
+    rightTicks = 0;
 }
 
 /*Simple PID funtions, can be upgraded while testing according to the performance. Like integral windup etc.*/
@@ -359,11 +385,13 @@ esp_err_t get_path(int local_flag)
 {
     char str[LINE_LEN], temp[500] = ""; // Change this temp to calloc
     int linectr = 0, count_flag = 1;
+    
     FILE* f_r = fopen("/spiffs/paths.txt", "r");
     if (f_r == NULL) {
         ESP_LOGE(TAG, "Failed to open file for reading");
         return ESP_FAIL;
     }
+    /*To get the path in temp variable, in the form of string */
     while(!feof(f_r))
     {
         strcpy(str, "\0");
@@ -387,32 +415,140 @@ esp_err_t get_path(int local_flag)
     }
     ESP_LOGI(TAG, "%s", temp);
     fclose(f_r);
-    //return ESP_OK;
-    char* token = strtok(temp, "\t");    //The elements are seperated by "\t"
-    auto_flag = 1;                      
+    /*To get x,y coordinates of the path*/
+    char* token = strtok(temp, " ");    //The elements are seperated by " "
+    auto_flag = 1;    
+    flag = -1;                  
     while(token!=NULL)					//iterate through each of the elements
     {
-        char ch = token[0];             //Get the first character which denotes the direction to be travelled
-        switch(ch){
-            case 'f'://move_forward();break;
-                        flag = 0; break;	//The flag values are set here. The infinite Loop in Task 1 checks these flag variables and calls the appropriate functions
-            case 'l'://move_left();break;
-                        flag = 1; break;
-            case 'r'://move_right();break;
-                        flag = 2; break;
-            case 'b'://move_back();break;
-                        flag = 3; break;
-            default://move_stop();break;
-                        flag = 4; break;
+        double xCoor = atof(token);       //Convert the value from string to float
+        token = strtok(NULL, " ");             //Get the next element
+        double yCoor = atof(token);      
+        ESP_LOGI(TAG, "Current (X,Y):(%f, %f)",xCoor, yCoor);
+        /*All the code to reach the destination with obstacle avoidance*/
+        updateParams(xCoor, yCoor);
+        while (!run)
+        {
+            actuationAuto();
         }
-        ESP_LOGI(TAG, "Direction: %c", ch);
-        token++;                        //Increment the pointer to get the numerical value stored after the first character
-        float time = atof(token);       //Convert the value from string to float
-        ESP_LOGI(TAG, "Time: %f", time);
-        vTaskDelay(time/portTICK_PERIOD_MS);    //Wait for the appropriate time
-        token = strtok(NULL, "\t");             //Get the next element
+        token = strtok(NULL, " ");            
     }
-    //move_stop();
     auto_flag = 0;
     return ESP_OK;
 }
+
+void updateParams(double xd, double yd){
+    dist_required = sqrt(pow(yd - prev_point[1],2)+pow(xd - prev_point[0],2));  //Distance in meters
+    /*The angle calculated here is absolute from positive x-axis, range is from +180 to -180. Clockwise -ve and anti +ve*/
+    if (xd-prev_point[0] >= 0){
+        angle_required = atan((yd-prev_point[1])/(xd-prev_point[0]))*180/M_PI;
+    }
+    else{
+        angle_required = -atan((xd-prev_point[0])/(yd-prev_point[1]))*180/M_PI;
+        if(yd-prev_point[1] >= 0)
+            angle_required = angle_required + 90;
+        else
+            angle_required = angle_required - 90;
+    }
+    prev_point[0] = xd;
+    prev_point[1] = yd;
+
+    dist_traversed = 0;
+    run = 0;
+}
+
+void actuationAuto(){
+    if (flag == 0)
+        dist_traversed = (leftRot*ENCODERresolution + leftTicks)*wheeldist_perTick; //In meters //To know if the target has been reached
+    else if (flag == 1 || flag == 2){  //angle_rotated is a static variable and is not being reset to zero in between
+        if (flag == 1) //anti clockwise for positive angle
+            angle_rotated = angle_rotated + ((leftRot*ENCODERresolution + leftTicks)*wheeldist_perTick*2)/wheelbase; //Angle of the bot in radians
+        else           //Clockwise negative angle
+            angle_rotated = angle_rotated - ((leftRot*ENCODERresolution + leftTicks)*wheeldist_perTick*2)/wheelbase; //Angle of the bot in radians
+    }    
+    current_point[0] = stop_point[0] + dist_traversed*cos(angle_rotated); //calculates co-ordinates of the current point using the 
+    current_point[1] = stop_point[1] + dist_traversed*sin(angle_rotated); //point where the orientation of the bot was last changed
+ 
+    // if((prev_time>=time_flag+0.5)&&(prev_time<time_flag+1))
+    // 	flag = 0; //forward() //change the speed to slow as this is also when obstacle is there
+    //if(detect_flag==0&&prev_time>=time_flag+1)
+    	normal_motion();
+    // else if(detect_flag==1&&prev_time>=time_flag+1){
+    //     if(obstacle_flag[1]==1&&obstacle_flag[3]==0){
+	//     	time_flag = prev_time;
+	//     	rotate(-1);
+	//     	dist_traversed = 0;
+	//     	update_stopPoint();
+    // 	}
+    //     else if(obstacle_flag[3]==1&&obstacle_flag[1]==0){
+    // 		time_flag = prev_time;
+    // 		rotate(1);
+    // 		dist_traversed = 0;
+	//     	update_stopPoint();
+    // 	}
+    //     else if(obstacle_flag[1]==1&&obstacle_flag[3]==1){
+    // 		time_flag = prev_time;
+    // 		rotate(1);
+    // 		dist_traversed = 0;
+	//     	update_stopPoint();
+    // 	}
+    //     else if(obstacle_flag[1]==0&&obstacle_flag[3]==0&&obstacle_flag[2]==1){
+    // 		time_flag = prev_time;
+    // 		rotate(1);
+    //         dist_traversed = 0;
+    //         update_stopPoint();
+    //     }
+    //     else if(obstacle_flag[0]==1||obstacle_flag[4]==1){
+    //         time_flag = prev_time;
+    //         forward(5);
+    // 	}
+    //     else if(obstacle_flag[0]==0&&obstacle_flag[4]==0){
+    // 		recalculate();
+    // 		detect_flag = 0;
+    // 	}
+    // }
+}
+
+void normal_motion(){
+    if(rotating_flag == 1){
+        if(doneFlag == 1){
+            init_pid();
+            flag = -1;
+            rotating_flag = 0;
+        }
+        else
+            rotate();
+    }
+    else{
+        if(doneFlag == 1){
+            init_pid();
+            flag = -1;
+            run=1;
+            update_stopPoint();
+            rotating_flag = 1;
+        }
+        else
+            forward();
+    }
+}
+
+void rotate(){
+    if((angle_required - angle_rotated*180/M_PI) > 0)
+        flag = 1;    //If diff is positive, then left(+ve for anticlockwise)
+    else
+        flag = 2; 
+    if((angle_required - angle_rotated*180/M_PI) < 0.5)  //set some threshold after which it can move 
+        doneFlag = 1;
+}
+
+void forward(){
+    flag = 0; 
+    if((dist_required - dist_traversed)< 0.1)  //set some threshold after which it can move 
+        doneFlag = 1;
+}
+
+void update_stopPoint(){
+    stop_point[0] = current_point[0];
+    stop_point[1] = current_point[1];
+}
+
