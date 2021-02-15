@@ -521,6 +521,10 @@ esp_err_t handle_manual(httpd_req_t *req)
 {   
     manual_flag = 1; //only when in manual mode, set to 0 again if start(recording) is pressed
     record_flag = 0; //recording has not yet started
+    
+    lin_speed = DEFAULT_LIN_SPEED;
+    ang_speed = DEFAULT_ANG_SPEED;
+    
     ESP_LOGI(TAG, "Record Flag: %d", record_flag);
 
     flag = -1;
@@ -686,6 +690,8 @@ esp_err_t handle_delete_path5(httpd_req_t *req)
 esp_err_t handle_auto(httpd_req_t *req)
 {
     flag = 4;
+    lin_speed = DEFAULT_LIN_SPEED;
+    ang_speed = DEFAULT_ANG_SPEED;
     //auto_flag = 1; //activates only when execute is pressed
     char* resp = get_auto();
     httpd_resp_send(req, resp, strlen(resp));

@@ -12,23 +12,28 @@
 #define RIGHT_MOTOR_DIRECTION 14
 
 #define LEFT_ENCODERA 36                       //Only signal A of both the motor is being used for now
-#define LEFT_ENCODERB 39
-#define RIGHT_ENCODERA 34                      //as the direction is set buy us, but for point we might need to use both
+#define LEFT_ENCODERB 39                   //Change the GPIO ENCODER PIN SEL when using all the pins
+#define RIGHT_ENCODERA 34                      
 #define RIGHT_ENCODERB 35
 #define GPIO_ENCODER_PIN_SEL  ((1ULL<<LEFT_ENCODERA) | (1ULL<<RIGHT_ENCODERA))  //64 bit mask
 #define ESP_INTR_FLAG_DEFAULT 0
 
-#define ULTRA1 
-#define ULTRA2
-#define ULTRA3
-#define ULTRA4
-#define ULTRA5
+#define ULTRA1 25
+#define ULTRA2 26
+#define ULTRA3 4
+#define ULTRA4 2
+#define ULTRA5 15
+#define GPIO_ULTRASONIC_PIN_SEL ((1ULL<<ULTRA1) | (1ULL<<ULTRA2) | (1ULL<<ULTRA3) | (1ULL<<ULTRA4) | (1ULL<<ULTRA5))
 
 #define ENCODERresolution 1200              //The resolution of encoder, current using any edge single channel
 #define wheeldist_perTick 0.000445          //in meters
 #define wheelbase 0.30                      //in meters
+
 #define DEFAULT_LIN_SPEED 0.03              //meter/sec    
-#define DEFAULT_ANG_SPEED 0.2               //rad/sec       
+#define DEFAULT_ANG_SPEED 0.2               //rad/sec   
+#define MIN_LINEAR_SPEED 0.005
+#define MIN_ANGULAR_SPEED 0.05
+     
 #define sampleTime 100000                   //in microsec
 #define sampleTimeInSec 0.1
 
@@ -44,6 +49,9 @@ extern double left_vel;                //Variable that store instantaneous veloc
 extern double right_vel;
 extern double prev_disL;
 extern double prev_disR;
+
+extern double lin_speed;
+extern double ang_speed;
 
 extern int64_t prev_tim;
 
@@ -97,5 +105,9 @@ void normal_motion();
 void rotate();
 void forward();
 void update_stopPoint();
+void recalculate();
+void sensing();
+void forwardSlow(int);
+void rotateSlow(int);
 
 #endif

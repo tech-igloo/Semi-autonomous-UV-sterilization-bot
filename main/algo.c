@@ -11,9 +11,11 @@ int rightTicks = 0;
 
 double left_vel = 0;
 double right_vel = 0;
-
 double prev_disL = 0;
 double prev_disR = 0;
+
+double lin_speed = DEFAULT_LIN_SPEED;
+double ang_speed = DEFAULT_ANG_SPEED;
 int64_t prev_tim = 0;
 
 double current_errorL = 0;
@@ -39,13 +41,12 @@ static double dist_traversed = 0;                //distance travlled by bot alon
 static double angle_rotated = 0;                 //angle rotated by bot(+ve for clockwise and -ve for anticlockwise)
 static int doneFlag = 0;
 
-//static double prev_time = 0;                     //stores the previous time step, gets updated to current time after sysCall_sensing
+static double prev_time = 0;                     //stores the previous time step, gets updated to current time after sysCall_sensing
+static double time_flag = 0;
 
-// static double time_flag = 0;
-// static int detect_flag = 0;
+static int detect_flag = 0;
 static int run = 0;
-
-//static int obstacle_flag[5] = {0};              //To record ultrasonic value
+static int obstacle_flag[5] = {0};              //To record ultrasonic value
 
 xQueueHandle gpio_evt_queue = NULL;
 
@@ -70,6 +71,13 @@ void init_gpio()
 
     gpio_set_direction(LEFT_MOTOR_DIRECTION, GPIO_MODE_OUTPUT);
     gpio_set_direction(RIGHT_MOTOR_DIRECTION, GPIO_MODE_OUTPUT);
+
+    ULTRASONIC.intr_type = 0;      //Change according to the resolution, anyedge for quadrature when using both the pins
+    ULTRASONIC.mode = GPIO_MODE_INPUT;
+    ULTRASONIC.pull_down_en = 0;
+    ULTRASONIC.pull_up_en = 0;
+    ULTRASONIC.pin_bit_mask = GPIO_ULTRASONIC_PIN_SEL; /*!< GPIO pin: set with bit mask, each bit maps to a GPIO */
+    gpio_config(&ULTRASONIC);
 }
 
 /*Used for setting up PWM Channel (Ref: Official Github Repo)*/
@@ -111,8 +119,8 @@ void move_forward()
         prev_disL = left_vel*0.1 + prev_disL;
         prev_disR = right_vel*0.1 + prev_disR;
 
-        Lpwm = pid_velLeft(left_vel, DEFAULT_LIN_SPEED);     //values after being mapped to PWM range
-        Rpwm = pid_velRight(right_vel, DEFAULT_LIN_SPEED);
+        Lpwm = pid_velLeft(left_vel, lin_speed);     //values after being mapped to PWM range
+        Rpwm = pid_velRight(right_vel, lin_speed);
         prev_tim = esp_timer_get_time();
     }
 
@@ -135,8 +143,8 @@ void move_left()
         prev_disR = right_vel*0.1 + prev_disR;
         right_vel = right_vel*2/wheelbase;
 
-        Lpwm = pid_velLeft(left_vel, DEFAULT_ANG_SPEED);
-        Rpwm = pid_velRight(right_vel, DEFAULT_ANG_SPEED);
+        Lpwm = pid_velLeft(left_vel, ang_speed);
+        Rpwm = pid_velRight(right_vel, ang_speed);
         prev_tim = esp_timer_get_time();
     }
 
@@ -159,8 +167,8 @@ void move_right()
         prev_disR = right_vel*0.1 + prev_disR;
         right_vel = right_vel*2/wheelbase;
 
-        Lpwm = pid_velLeft(left_vel, DEFAULT_ANG_SPEED);
-        Rpwm = pid_velRight(right_vel, DEFAULT_ANG_SPEED);
+        Lpwm = pid_velLeft(left_vel, ang_speed);
+        Rpwm = pid_velRight(right_vel, ang_speed);
         prev_tim = esp_timer_get_time();
     }    
 
@@ -180,8 +188,8 @@ void move_back()
         prev_disL = left_vel*0.1 + prev_disL;
         prev_disR = right_vel*0.1 + prev_disR;
 
-        Lpwm = pid_velLeft(left_vel, DEFAULT_LIN_SPEED);
-        Rpwm = pid_velRight(right_vel, DEFAULT_LIN_SPEED);
+        Lpwm = pid_velLeft(left_vel, lin_speed);
+        Rpwm = pid_velRight(right_vel, lin_speed);
         prev_tim = esp_timer_get_time();
     }
 
@@ -381,11 +389,13 @@ esp_err_t convert_paths(int n){
 }
 
 /*Execute the local_flag th path*/ //auto mode, need to enable the interrupts and use the algorithm
-esp_err_t get_path(int local_flag)
-{
+esp_err_t get_path(int local_flag){
     char str[LINE_LEN], temp[500] = ""; // Change this temp to calloc
     int linectr = 0, count_flag = 1;
     
+    gpio_intr_enable(LEFT_ENCODERA);    //Enabled when in active mode(ready to move)
+    gpio_intr_enable(RIGHT_ENCODERA);
+
     FILE* f_r = fopen("/spiffs/paths.txt", "r");
     if (f_r == NULL) {
         ESP_LOGE(TAG, "Failed to open file for reading");
@@ -429,11 +439,16 @@ esp_err_t get_path(int local_flag)
         updateParams(xCoor, yCoor);
         while (!run)
         {
+            sensing();
             actuationAuto();
         }
         token = strtok(NULL, " ");            
     }
     auto_flag = 0;
+
+    gpio_intr_disable(LEFT_ENCODERA);  //Disabled interrupt once done  
+    gpio_intr_disable(RIGHT_ENCODERA);
+
     return ESP_OK;
 }
 
@@ -468,48 +483,51 @@ void actuationAuto(){
     }    
     current_point[0] = stop_point[0] + dist_traversed*cos(angle_rotated); //calculates co-ordinates of the current point using the 
     current_point[1] = stop_point[1] + dist_traversed*sin(angle_rotated); //point where the orientation of the bot was last changed
- 
-    // if((prev_time>=time_flag+0.5)&&(prev_time<time_flag+1))
-    // 	flag = 0; //forward() //change the speed to slow as this is also when obstacle is there
-    //if(detect_flag==0&&prev_time>=time_flag+1)
+
+    if((prev_time>=time_flag+0.5) && (prev_time<time_flag+1))  //this for moving forward slowly after sensing for 
+        forwardSlow(1);
+    if(detect_flag==0 && prev_time>=time_flag+1)
     	normal_motion();
-    // else if(detect_flag==1&&prev_time>=time_flag+1){
-    //     if(obstacle_flag[1]==1&&obstacle_flag[3]==0){
-	//     	time_flag = prev_time;
-	//     	rotate(-1);
-	//     	dist_traversed = 0;
-	//     	update_stopPoint();
-    // 	}
-    //     else if(obstacle_flag[3]==1&&obstacle_flag[1]==0){
-    // 		time_flag = prev_time;
-    // 		rotate(1);
-    // 		dist_traversed = 0;
-	//     	update_stopPoint();
-    // 	}
-    //     else if(obstacle_flag[1]==1&&obstacle_flag[3]==1){
-    // 		time_flag = prev_time;
-    // 		rotate(1);
-    // 		dist_traversed = 0;
-	//     	update_stopPoint();
-    // 	}
-    //     else if(obstacle_flag[1]==0&&obstacle_flag[3]==0&&obstacle_flag[2]==1){
-    // 		time_flag = prev_time;
-    // 		rotate(1);
-    //         dist_traversed = 0;
-    //         update_stopPoint();
-    //     }
-    //     else if(obstacle_flag[0]==1||obstacle_flag[4]==1){
-    //         time_flag = prev_time;
-    //         forward(5);
-    // 	}
-    //     else if(obstacle_flag[0]==0&&obstacle_flag[4]==0){
-    // 		recalculate();
-    // 		detect_flag = 0;
-    // 	}
-    // }
+    else if(detect_flag==1 && prev_time>=time_flag+1){
+        if(obstacle_flag[1]==1 && obstacle_flag[3]==0){
+	    	time_flag = prev_time;
+	    	rotateSlow(-1);
+	    	dist_traversed = 0;
+	    	update_stopPoint();
+    	}
+        else if(obstacle_flag[3]==1 && obstacle_flag[1]==0){
+    		time_flag = prev_time;
+    		rotateSlow(1);
+    		dist_traversed = 0;
+	    	update_stopPoint();
+    	}
+        else if(obstacle_flag[1]==1 && obstacle_flag[3]==1){
+    		time_flag = prev_time;
+    		rotateSlow(1);
+    		dist_traversed = 0;
+	    	update_stopPoint();
+    	}
+        else if(obstacle_flag[1]==0 && obstacle_flag[3]==0 && obstacle_flag[2]==1){
+    		time_flag = prev_time;
+    		rotateSlow(1);
+            dist_traversed = 0;
+            update_stopPoint();
+        }
+        else if(obstacle_flag[0]==1 || obstacle_flag[4]==1){
+            time_flag = prev_time;
+            forwardSlow(5);
+    	}
+        else if(obstacle_flag[0]==0 && obstacle_flag[4]==0){
+    		recalculate();
+    		detect_flag = 0;
+    	}
+    }
 }
 
 void normal_motion(){
+    lin_speed = DEFAULT_LIN_SPEED;
+    ang_speed = DEFAULT_ANG_SPEED;
+
     if(rotating_flag == 1){
         if(doneFlag == 1){
             init_pid();
@@ -550,5 +568,49 @@ void forward(){
 void update_stopPoint(){
     stop_point[0] = current_point[0];
     stop_point[1] = current_point[1];
+}
+
+void recalculate(){
+    dist_required = sqrt(pow(prev_point[1]-current_point[1], 2) + pow(prev_point[0]-current_point[0], 2));    
+    if(prev_point[0]-current_point[0] >= 0){
+        angle_required = atan((prev_point[1]-current_point[1])/(prev_point[0]-current_point[0]))*180/M_PI;
+    }
+    else{
+        angle_required = -atan((prev_point[0]-current_point[0])/(prev_point[1]-current_point[1]))*180/M_PI;
+        if(prev_point[1]-current_point[1] >= 0)
+            angle_required = angle_required + 90;
+        else 
+            angle_required = angle_required - 90;
+    }
+    update_stopPoint();
+    dist_traversed = 0;
+    init_pid();
+    rotating_flag = 1;
+}
+
+void sensing(){
+
+    prev_time = esp_timer_get_time()/1000000;    //Getting current time in microseconds and storing in seconds
+
+   	obstacle_flag[0] = !gpio_get_level(ULTRA1);
+   	obstacle_flag[1] = !gpio_get_level(ULTRA2);
+   	obstacle_flag[2] = !gpio_get_level(ULTRA3);
+   	obstacle_flag[3] = !gpio_get_level(ULTRA4);
+   	obstacle_flag[4] = !gpio_get_level(ULTRA5);
+    
+    detect_flag = obstacle_flag[1] | obstacle_flag[2] | obstacle_flag[3];
+}
+
+void forwardSlow(int num){
+    flag = 0;
+    lin_speed = MIN_LINEAR_SPEED*num;
+}
+
+void rotateSlow(int num){
+    ang_speed = MIN_ANGULAR_SPEED*abs(num);
+    if(num > 0)
+        flag = 1;    //left
+    else 
+        flag = 2;    //right
 }
 
