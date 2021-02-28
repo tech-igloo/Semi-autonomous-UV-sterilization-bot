@@ -17,5 +17,6 @@
         "cmath": "c",
         "*.inc": "c"
     },
-    "idf.flashType": "UART"
+    "idf.flashType": "UART",
+    "cmake.configureOnOpen": false
 }
