@@ -80,6 +80,7 @@ struct point{                                   //Data Structure for storing poi
     double theta;
 };
 
+void InterruptEncoder(void* arg);
 void init_gpio();
 void init_pwm();
 

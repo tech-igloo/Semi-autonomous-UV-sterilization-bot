@@ -434,7 +434,7 @@ esp_err_t handle_start(httpd_req_t *req)
     record_flag = 1; //record_flag is changed to 1 to denote that recording has started
     manual_flag = 0;
     flag = -1;       //-1 denotes stop
-
+    init_pid();
     ESP_LOGI(TAG, "Record Flag: %d", record_flag);
     char* resp = manual_mode();
     httpd_resp_send(req, resp, strlen(resp));
@@ -449,7 +449,7 @@ esp_err_t handle_start(httpd_req_t *req)
 /*Callback function whenever "/path1" is accessed*/
 esp_err_t handle_path1(httpd_req_t *req)
 {
-    ESP_ERROR_CHECK(get_path(1)); //Execute Path 1
+    auto_flag = 1; //Execute Path 1
     char* resp = get_home(0);   //Get the HTML Code to display
     httpd_resp_send(req, resp, strlen(resp));   //Display the HTML Code
     free(resp);
@@ -463,7 +463,7 @@ esp_err_t handle_path1(httpd_req_t *req)
 /*Callback function whenever "/path2" is accessed*/
 esp_err_t handle_path2(httpd_req_t *req)
 {
-    ESP_ERROR_CHECK(get_path(2)); //Execute Path 2
+    auto_flag = 2; //Execute Path 2
     char* resp = get_home(0);
     httpd_resp_send(req, resp, strlen(resp));
     free(resp);
@@ -477,7 +477,7 @@ esp_err_t handle_path2(httpd_req_t *req)
 /*Callback function whenever "/path3" is accessed*/
 esp_err_t handle_path3(httpd_req_t *req)
 {
-    ESP_ERROR_CHECK(get_path(3)); //Execute Path 3
+    auto_flag = 3; //Execute Path 3
     char* resp = get_home(0);
     httpd_resp_send(req, resp, strlen(resp));
     free(resp);
@@ -491,7 +491,7 @@ esp_err_t handle_path3(httpd_req_t *req)
 /*Callback function whenever "/path4" is accessed*/
 esp_err_t handle_path4(httpd_req_t *req)
 {
-    ESP_ERROR_CHECK(get_path(4)); //Execute Path 4
+    auto_flag = 4; //Execute Path 4
     char* resp = get_home(0);
     httpd_resp_send(req, resp, strlen(resp));
     free(resp);
@@ -505,7 +505,7 @@ esp_err_t handle_path4(httpd_req_t *req)
 /*Callback function whenever "/path5" is accessed*/
 esp_err_t handle_path5(httpd_req_t *req)
 {
-    ESP_ERROR_CHECK(get_path(5)); //Execute PAth 5
+    auto_flag = 5; //Execute PAth 5
     char* resp = get_home(0);
     httpd_resp_send(req, resp, strlen(resp));
     free(resp);

@@ -50,6 +50,31 @@ static int obstacle_flag[5] = {0};              //To record ultrasonic value
 
 xQueueHandle gpio_evt_queue = NULL;
 
+void InterruptEncoder(void* arg)
+{
+    uint32_t io_num;
+    ESP_LOGI(TAG, "On core %d", xPortGetCoreID());
+    for(;;) {
+        if(xQueueReceive(gpio_evt_queue, &io_num, portMAX_DELAY)) {
+            //printf("GPIO[%d] intr, val: %d\n", io_num, gpio_get_level(io_num)); 
+            if (io_num == LEFT_ENCODERA){
+                leftTicks++;
+                if (leftTicks >= ENCODERresolution){
+                    leftRot++;                         
+                    leftTicks=0;
+                }
+            }
+            else if (io_num == RIGHT_ENCODERA){
+                rightTicks++;
+                if (rightTicks >= ENCODERresolution){
+                    rightRot++;
+                    rightTicks=0;
+                }
+            }
+        }   
+    }
+}
+
 /*To initialize the motor direction, encoder, and sensor I/O pins*/ 
 void init_gpio()
 {
@@ -65,6 +90,8 @@ void init_gpio()
     gpio_isr_handler_add(RIGHT_ENCODERA, gpio_encoder_isr_handler, (void*) RIGHT_ENCODERA);
     
     gpio_evt_queue = xQueueCreate(20, sizeof(uint32_t));    //gpio interrupt queue
+    
+    xTaskCreate(InterruptEncoder, "InterruptEncoder", 2048, NULL, 10, NULL);
 
     gpio_intr_disable(LEFT_ENCODERA);  //Enabled when recording or in auto mode  
     gpio_intr_disable(RIGHT_ENCODERA);
@@ -107,6 +134,12 @@ void init_pwm()
     motorR.hpoint = 0;
     motorR.timer_sel = LEDC_TIMER_0;
     ledc_channel_config(&motorR);
+}
+
+void IRAM_ATTR gpio_encoder_isr_handler(void* arg)
+{
+    uint32_t gpio_num = (uint32_t) arg;
+    xQueueSendFromISR(gpio_evt_queue, &gpio_num, NULL);
 }
 
 /*The following are the actuation functions for movement of the bot with velocity feedback control*/
@@ -423,12 +456,13 @@ esp_err_t get_path(int local_flag){
             }
         }
     }
-    ESP_LOGI(TAG, "%s", temp);
+    ESP_LOGI(TAG, "Get Path print %s", temp);
     fclose(f_r);
     /*To get x,y coordinates of the path*/
     char* token = strtok(temp, " ");    //The elements are seperated by " "
-    auto_flag = 1;    
-    flag = -1;                  
+
+    flag = -1; 
+    move_stop();                
     while(token!=NULL)					//iterate through each of the elements
     {
         double xCoor = atof(token);       //Convert the value from string to float
@@ -442,7 +476,9 @@ esp_err_t get_path(int local_flag){
             sensing();
             actuationAuto();
         }
-        token = strtok(NULL, " ");            
+        token = strtok(NULL, " "); 
+        if (!strcmp(token,"\n"))   //This took a long time to figure out
+            break;           
     }
     auto_flag = 0;
 
@@ -467,7 +503,7 @@ void updateParams(double xd, double yd){
     }
     prev_point[0] = xd;
     prev_point[1] = yd;
-
+    ESP_LOGI(TAG, "Previous point(X,Y):(%f, %f)",prev_point[0],prev_point[1]);
     dist_traversed = 0;
     run = 0;
 }
@@ -532,6 +568,7 @@ void normal_motion(){
         if(doneFlag == 1){
             init_pid();
             flag = -1;
+            move_stop();
             rotating_flag = 0;
         }
         else
@@ -541,6 +578,7 @@ void normal_motion(){
         if(doneFlag == 1){
             init_pid();
             flag = -1;
+            move_stop();
             run=1;
             update_stopPoint();
             rotating_flag = 1;
@@ -551,16 +589,21 @@ void normal_motion(){
 }
 
 void rotate(){
-    if((angle_required - angle_rotated*180/M_PI) > 0)
+    if((angle_required - angle_rotated*180/M_PI) > 0){
         flag = 1;    //If diff is positive, then left(+ve for anticlockwise)
-    else
+        move_left();
+    }
+    else{
         flag = 2; 
+        move_right();
+    }
     if((angle_required - angle_rotated*180/M_PI) < 0.5)  //set some threshold after which it can move 
         doneFlag = 1;
 }
 
 void forward(){
     flag = 0; 
+    move_forward();
     if((dist_required - dist_traversed)< 0.1)  //set some threshold after which it can move 
         doneFlag = 1;
 }
@@ -603,14 +646,19 @@ void sensing(){
 
 void forwardSlow(int num){
     flag = 0;
+    move_forward();
     lin_speed = MIN_LINEAR_SPEED*num;
 }
 
 void rotateSlow(int num){
     ang_speed = MIN_ANGULAR_SPEED*abs(num);
-    if(num > 0)
+    if(num > 0){
         flag = 1;    //left
-    else 
+        move_left();
+    }
+    else{
         flag = 2;    //right
+        move_right();
+    }
 }
 

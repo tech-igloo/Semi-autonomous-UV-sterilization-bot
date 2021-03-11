@@ -15,7 +15,9 @@
         "sstream": "c",
         "chrono": "c",
         "cmath": "c",
-        "*.inc": "c"
+        "*.inc": "c",
+        "server.h": "c",
+        "algo.h": "c"
     },
     "idf.flashType": "UART",
     "cmake.configureOnOpen": false

@@ -577,69 +577,25 @@ void wifi_init_sta(void)
 
 /*Function that will run parallely on Core 1*/
 void Task1code( void * pvParameters ){
-    uint32_t io_num;
-
     init_gpio();    //Initialize encoder and sensor pins
 	init_pwm();     //Initialize PWM channel
    
     while(1){   
     	//ESP_LOGI(TAG, "Infinite Loop running On core %d", xPortGetCoreID());
-        if(record_flag == 1 || auto_flag == 1 || manual_flag == 1){					//manual_flag, record_flag, flag, auto_flag are updated in other portions of the code 
+        if(record_flag == 1 || manual_flag == 1){					//manual_flag, record_flag, flag, auto_flag are updated in other portions of the code 
             if(flag == 0) move_forward();
             else if(flag == 1) move_left();
             else if(flag == 2) move_right();
             else if(flag == 3) move_back();
             else move_stop();
-            
-            if(xQueueReceive(gpio_evt_queue, &io_num, portMAX_DELAY)) {
-                printf("GPIO[%d] intr, val: %d\n", io_num, gpio_get_level(io_num)); 
-                if (io_num == LEFT_ENCODERA){
-                    leftTicks++;
-                    if (leftTicks >= ENCODERresolution){
-                        leftRot++;                         
-                        leftTicks=0;
-                    }
-                    // if (flag == 0 || flag == 2)   //commenting this cause we don't really need ve- ticks
-                    //     leftTicks++;
-                    // else if (flag == 3 || flag == 1)
-                    //     leftTicks--;
-                    // if (leftTicks >= ENCODERresolution){
-                    //     leftRot++;                         
-                    //     leftTicks=0;
-                    // }else if (leftTicks <= (-1*ENCODERresolution)){
-                    //     leftRot--;                         
-                    //     leftTicks=0;
-                    // }
-                }
-                else if (io_num == RIGHT_ENCODERA){
-                    rightTicks++;
-                    if (rightTicks >= ENCODERresolution){
-                        rightRot++;
-                        rightTicks=0;
-                    }
-                    // if (flag == 0 || flag == 1)
-                    //     rightTicks++;
-                    // else if (flag == 3 || flag == 2)
-                    //     rightTicks--;
-                    // if (rightTicks >= ENCODERresolution){
-                    //     rightRot++;
-                    //     rightTicks=0;
-                    // }else if (rightTicks <= (-1*ENCODERresolution)){
-                    //     rightRot--;                         
-                    //     rightTicks=0;
-                    // }
-                }
-            }      
+        }
+        else if(auto_flag > 0){
+            ESP_ERROR_CHECK(get_path(auto_flag));
+            ESP_LOGI(TAG, "Path executed successfully");
         }
         else
             move_stop();
     }
-}
-
-void IRAM_ATTR gpio_encoder_isr_handler(void* arg)
-{
-    uint32_t gpio_num = (uint32_t) arg;
-    xQueueSendFromISR(gpio_evt_queue, &gpio_num, NULL);
 }
 
 /*Main function that gets called once at the start when ESP boots*/
