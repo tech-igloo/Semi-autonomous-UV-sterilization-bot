@@ -471,11 +471,16 @@ esp_err_t get_path(int local_flag){
         ESP_LOGI(TAG, "Current (X,Y):(%f, %f)",xCoor, yCoor);
         /*All the code to reach the destination with obstacle avoidance*/
         updateParams(xCoor, yCoor);
-        while (!run)
+        while (!run && !auto_stop_flag)
         {
-            sensing();
-            actuationAuto();
+            if (!auto_pause_flag)
+            {
+                sensing();
+                actuationAuto();
+            }
         }
+        if(auto_stop_flag)  //When /STOPauto is pressed while the path is being executed
+            break;
         token = strtok(NULL, " "); 
         if (!strcmp(token,"\n"))   //This took a long time to figure out
             break;           
@@ -525,6 +530,7 @@ void actuationAuto(){
     if(detect_flag==0 && prev_time>=time_flag+1)
     	normal_motion();
     else if(detect_flag==1 && prev_time>=time_flag+1){
+        //ESP_LOGI(TAG, "after normal_motion");
         if(obstacle_flag[1]==1 && obstacle_flag[3]==0){
 	    	time_flag = prev_time;
 	    	rotateSlow(-1);
@@ -563,7 +569,7 @@ void actuationAuto(){
 void normal_motion(){
     lin_speed = DEFAULT_LIN_SPEED;
     ang_speed = DEFAULT_ANG_SPEED;
-
+        //ESP_LOGI(TAG, "normal_motion");
     if(rotating_flag == 1){
         if(doneFlag == 1){
             init_pid();
@@ -641,7 +647,7 @@ void sensing(){
    	obstacle_flag[3] = !gpio_get_level(ULTRA4);
    	obstacle_flag[4] = !gpio_get_level(ULTRA5);
     
-    detect_flag = obstacle_flag[1] | obstacle_flag[2] | obstacle_flag[3];
+    detect_flag = obstacle_flag[1] | obstacle_flag[2] | obstacle_flag[3];  //comment this when testing only normal motion
 }
 
 void forwardSlow(int num){

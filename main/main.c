@@ -17,6 +17,8 @@ int total = 0;                           //Total number of network credentials f
 int total_paths = 0;                     //Total number of paths stored till now
 int auto_flag = 0;                       //Denote whether auto mode is on or off
 int manual_flag = 0;                     //To check if it is in manual motion mode
+int auto_stop_flag = 0;
+int auto_pause_flag = 0;
 static TaskHandle_t Task1;                      //Task handle to keep track of created task running on Core 1
 
 
@@ -591,7 +593,11 @@ void Task1code( void * pvParameters ){
         }
         else if(auto_flag > 0){
             ESP_ERROR_CHECK(get_path(auto_flag));
-            ESP_LOGI(TAG, "Path executed successfully");
+            if(!auto_stop_flag)
+                ESP_LOGI(TAG, "Path executed successfully");
+            else
+                ESP_LOGI(TAG, "Path execution stopped");
+            auto_stop_flag = 0;
         }
         else
             move_stop();

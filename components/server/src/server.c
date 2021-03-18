@@ -38,6 +38,20 @@ httpd_uri_t uri_auto = {
     .user_ctx = NULL
 };
 
+httpd_uri_t uri_autopause = {
+    .uri      = "/pauseauto",
+    .method   = HTTP_GET,
+    .handler  = handle_auto_pause,
+    .user_ctx = NULL
+};
+
+httpd_uri_t uri_autostop = {
+    .uri      = "/stopauto",
+    .method   = HTTP_GET,
+    .handler  = handle_auto_stop,
+    .user_ctx = NULL
+};
+
 httpd_uri_t uri_specific_path1 = {
     .uri      = "/path_details1",
     .method   = HTTP_GET,
@@ -450,7 +464,8 @@ esp_err_t handle_start(httpd_req_t *req)
 esp_err_t handle_path1(httpd_req_t *req)
 {
     auto_flag = 1; //Execute Path 1
-    char* resp = get_home(0);   //Get the HTML Code to display
+    auto_pause_flag = 0;
+    char* resp = get_pathexec();   //Get the HTML Code to display
     httpd_resp_send(req, resp, strlen(resp));   //Display the HTML Code
     free(resp);
     //ESP_LOGI(TAG, "On core %d", xPortGetCoreID());
@@ -464,7 +479,8 @@ esp_err_t handle_path1(httpd_req_t *req)
 esp_err_t handle_path2(httpd_req_t *req)
 {
     auto_flag = 2; //Execute Path 2
-    char* resp = get_home(0);
+    auto_pause_flag = 0;
+    char* resp = get_pathexec();
     httpd_resp_send(req, resp, strlen(resp));
     free(resp);
     //ESP_LOGI(TAG, "On core %d", xPortGetCoreID());
@@ -476,9 +492,10 @@ esp_err_t handle_path2(httpd_req_t *req)
 
 /*Callback function whenever "/path3" is accessed*/
 esp_err_t handle_path3(httpd_req_t *req)
-{
+{   
     auto_flag = 3; //Execute Path 3
-    char* resp = get_home(0);
+    auto_pause_flag = 0;
+    char* resp = get_pathexec();
     httpd_resp_send(req, resp, strlen(resp));
     free(resp);
     //ESP_LOGI(TAG, "On core %d", xPortGetCoreID());
@@ -492,7 +509,8 @@ esp_err_t handle_path3(httpd_req_t *req)
 esp_err_t handle_path4(httpd_req_t *req)
 {
     auto_flag = 4; //Execute Path 4
-    char* resp = get_home(0);
+    auto_pause_flag = 0;
+    char* resp = get_pathexec();
     httpd_resp_send(req, resp, strlen(resp));
     free(resp);
     //ESP_LOGI(TAG, "On core %d", xPortGetCoreID());
@@ -506,7 +524,8 @@ esp_err_t handle_path4(httpd_req_t *req)
 esp_err_t handle_path5(httpd_req_t *req)
 {
     auto_flag = 5; //Execute PAth 5
-    char* resp = get_home(0);
+    auto_pause_flag = 0;
+    char* resp = get_pathexec();
     httpd_resp_send(req, resp, strlen(resp));
     free(resp);
     //ESP_LOGI(TAG, "On core %d", xPortGetCoreID());
@@ -547,10 +566,17 @@ esp_err_t handle_manual(httpd_req_t *req)
 /*Callback function whenever "/path_details1" is accessed
   All of the handle_specific_path() functions below are similar, only difference is the values passed to the HTML generator function*/
 esp_err_t handle_specific_path1(httpd_req_t *req)
-{
-    char* resp = get_path_specific(1);
-    httpd_resp_send(req, resp, strlen(resp));
-    free(resp);
+{   
+    if(auto_flag == 1){
+        char* resp = get_pathexec();
+        httpd_resp_send(req, resp, strlen(resp));
+        free(resp);
+    }
+    else{
+        char* resp = get_path_specific(1);
+        httpd_resp_send(req, resp, strlen(resp));
+        free(resp);
+    }
     //ESP_LOGI(TAG, "On core %d", xPortGetCoreID());
     ESP_LOGI(TAG, "Now displaying /path_details1");
     ESP_LOGI(TAG, "Callback Function called: handle_specific_path1()");
@@ -561,9 +587,16 @@ esp_err_t handle_specific_path1(httpd_req_t *req)
 /*Callback function whenever "/path_details2" is accessed*/
 esp_err_t handle_specific_path2(httpd_req_t *req)
 {
-    char* resp = get_path_specific(2);
-    httpd_resp_send(req, resp, strlen(resp));
-    free(resp);
+    if(auto_flag == 2){
+        char* resp = get_pathexec();
+        httpd_resp_send(req, resp, strlen(resp));
+        free(resp);
+    }
+    else{
+        char* resp = get_path_specific(2);
+        httpd_resp_send(req, resp, strlen(resp));
+        free(resp);
+    }
     //ESP_LOGI(TAG, "On core %d", xPortGetCoreID());
     ESP_LOGI(TAG, "Now displaying /path_details2");
     ESP_LOGI(TAG, "Callback Function called: handle_specific_path2()");
@@ -574,9 +607,16 @@ esp_err_t handle_specific_path2(httpd_req_t *req)
 /*Callback function whenever "/path_details3" is accessed*/
 esp_err_t handle_specific_path3(httpd_req_t *req)
 {
-    char* resp = get_path_specific(3);
-    httpd_resp_send(req, resp, strlen(resp));
-    free(resp);
+    if(auto_flag == 3){
+        char* resp = get_pathexec();
+        httpd_resp_send(req, resp, strlen(resp));
+        free(resp);
+    }
+    else{
+        char* resp = get_path_specific(3);
+        httpd_resp_send(req, resp, strlen(resp));
+        free(resp);
+    }
     //ESP_LOGI(TAG, "On core %d", xPortGetCoreID());
     ESP_LOGI(TAG, "Now displaying /path_details3");
     ESP_LOGI(TAG, "Callback Function called: handle_specific_path3()");
@@ -587,9 +627,16 @@ esp_err_t handle_specific_path3(httpd_req_t *req)
 /*Callback function whenever "/path_details4" is accessed*/
 esp_err_t handle_specific_path4(httpd_req_t *req)
 {
-    char* resp = get_path_specific(4);
-    httpd_resp_send(req, resp, strlen(resp));
-    free(resp);
+    if(auto_flag == 4){
+        char* resp = get_pathexec();
+        httpd_resp_send(req, resp, strlen(resp));
+        free(resp);
+    }
+    else{
+        char* resp = get_path_specific(4);
+        httpd_resp_send(req, resp, strlen(resp));
+        free(resp);
+    }
     //ESP_LOGI(TAG, "On core %d", xPortGetCoreID());
     ESP_LOGI(TAG, "Now displaying /path_details4");
     ESP_LOGI(TAG, "Callback Function called: handle_specific_path4()");
@@ -600,9 +647,16 @@ esp_err_t handle_specific_path4(httpd_req_t *req)
 /*Callback function whenever "/path_details5" is accessed*/
 esp_err_t handle_specific_path5(httpd_req_t *req)
 {
-    char* resp = get_path_specific(5);
-    httpd_resp_send(req, resp, strlen(resp));
-    free(resp);
+    if(auto_flag == 5){
+        char* resp = get_pathexec();
+        httpd_resp_send(req, resp, strlen(resp));
+        free(resp);
+    }
+    else{
+        char* resp = get_path_specific(5);
+        httpd_resp_send(req, resp, strlen(resp));
+        free(resp);
+    }
     //ESP_LOGI(TAG, "On core %d", xPortGetCoreID());
     ESP_LOGI(TAG, "Now displaying /path_details5");
     ESP_LOGI(TAG, "Callback Function called: handle_specific_path5()");
@@ -700,6 +754,36 @@ esp_err_t handle_auto(httpd_req_t *req)
     ESP_LOGI(TAG, "Now displaying /auto");
     ESP_LOGI(TAG, "Callback Function called: handle_auto()");
     ESP_LOGI(TAG, "Webpage displayed using HTML Code returned by: get_auto()");
+    return ESP_OK;
+}
+
+/*Callback function whenever "/pauseauto" is accessed*/
+esp_err_t handle_auto_pause(httpd_req_t *req)
+{
+    auto_pause_flag = 1;
+
+    char* resp = get_pathexec();
+    httpd_resp_send(req, resp, strlen(resp));
+    free(resp);
+
+    ESP_LOGI(TAG, "Now displaying /pauseauto");
+    ESP_LOGI(TAG, "Callback Function called: handle_auto_pause()");
+    ESP_LOGI(TAG, "Webpage displayed using HTML Code returned by: get_pathexec()");
+    return ESP_OK;
+}
+
+/*Callback function whenever "/pauseauto" is accessed*/
+esp_err_t handle_auto_stop(httpd_req_t *req)
+{
+    auto_stop_flag = 1;
+
+    char* resp = get_home(0);
+    httpd_resp_send(req, resp, strlen(resp));
+    free(resp);
+
+    ESP_LOGI(TAG, "Now displaying /stopauto");
+    ESP_LOGI(TAG, "Callback Function called: handle_auto_stop()");
+    ESP_LOGI(TAG, "Webpage displayed using HTML Code returned by: get_home(0)");
     return ESP_OK;
 }
 
@@ -1813,7 +1897,7 @@ char* get_auto()
 char* get_path_specific(int local_flag)
 {
     char* ptr = (char*)calloc(2048, sizeof(char));
-    char str[20];
+    char str[20], str1[20];
     strcat(ptr, "<!DOCTYPE html> <html>\n");
     strcat(ptr, "<head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0, user-scalable=no\">\n");
     strcat(ptr, "<title>Choose Direction</title>\n");
@@ -1838,13 +1922,21 @@ char* get_path_specific(int local_flag)
     strcat(ptr, "<h3>PATH: ");
     strcat(ptr, str);
     strcat(ptr, "</h3>\n");
-    strcat(ptr, "<p>Press to execute this path</p><a class=\"button button-on\" href=\"/path");
-    strcat(ptr, str); //Go to "/path1" or "/path2" and so on
-    strcat(ptr, "\">Execute</a>\n");
+    if(auto_flag){
+        sprintf(str1, "%d", auto_flag);
+        strcat(ptr, "<h3>PATH: ");
+        strcat(ptr, str1);
+        strcat(ptr, " is being executed</h3>\n");    
+    }
+    if(!auto_flag){
+        strcat(ptr, "<p>Press to execute this path</p><a class=\"button button-on\" href=\"/path");
+        strcat(ptr, str); //Go to "/path1" or "/path2" and so on
+        strcat(ptr, "\">Execute</a>\n");
+    }
     strcat(ptr, "<p>Press to delete this path</p><a class=\"button button-on\" href=\"/delete_path");
     strcat(ptr, str); //Go to "/delete_path1" or "/delete_path2" and so on
     strcat(ptr, "\">Delete</a>\n");
-    strcat(ptr, "<p>Press to return to home</p><a class=\"button button-on\" href=\"/\">HOME</a>\n");
+    strcat(ptr, "<p>Press to go back</p><a class=\"button button-on\" href=\"/auto\">BACK</a>\n");
     strcat(ptr, "</body>\n");
     strcat(ptr, "</html>\n");
     return ptr;
@@ -1882,6 +1974,46 @@ char* get_home(int local_flag)
         strcat(ptr, "<h3>Saved Successfully</h3>\n");
     else if(local_flag == 4)
         strcat(ptr, "<h3>Added Successfully</h3>\n");
+    strcat(ptr, "<p>Press to return to home</p><a class=\"button button-on\" href=\"/\">HOME</a>\n");
+    strcat(ptr, "</body>\n");
+    strcat(ptr, "</html>\n");
+    return ptr; 
+}
+
+char* get_pathexec()
+{   
+    char* ptr = (char*)calloc(2048, sizeof(char));
+    char str[20];
+    sprintf(str, "%d", auto_flag);
+    strcat(ptr, "<!DOCTYPE html> <html>\n");
+    strcat(ptr, "<head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0, user-scalable=no\">\n");
+    strcat(ptr, "<title>Choose Direction</title>\n");
+    strcat(ptr, "<style>html { font-family: Helvetica; display: inline-block; margin: 0px auto; text-align: center;}\n");
+    strcat(ptr, "body{margin-top: 50px;} h1 {color: #444444;margin: 50px auto 30px;} h3 {color: #444444;margin-bottom: 50px;}\n");
+    strcat(ptr, ".button {display: block;width: 100px;background-color: #3498db;border: none;color: white;padding: 13px 30px;text-decoration: none;font-size: 25px;margin: 0px auto 35px;cursor: pointer;border-radius: 4px;}\n");
+    strcat(ptr, ".button-on {background-color: #3498db;}\n");
+    strcat(ptr, ".button-on:active {background-color: #2980b9;}\n");
+    strcat(ptr, ".button-off {background-color: #34495e;}\n");
+    strcat(ptr, ".button-off:active {background-color: #2c3e50;}\n");
+    strcat(ptr, "p {font-size: 14px;color: #888;margin-bottom: 10px;}\n");
+    strcat(ptr, "</style>\n");
+    strcat(ptr, "</head>\n");
+    strcat(ptr, "<body>\n");
+    strcat(ptr, "<h1>ESP32 Web Server</h1>\n");
+    if(conn_flag == 0)
+        strcat(ptr, "<h3>Using Access Point(AP) Mode</h3>\n");
+    else
+        strcat(ptr, "<h3>Using Station(STA) Mode</h3>\n");
+
+    strcat(ptr, "<h3>Executing path</h3>\n");
+    strcat(ptr, "<p>Press to stop the execution</p><a class=\"button button-on\" href=\"/stopauto\">STOP</a>\n");
+    if(!auto_pause_flag)
+        strcat(ptr, "<p>Pause execution: OFF(Press to Pause)</p><a class=\"button button-on\" href=\"/pauseauto\">ON</a>\n");
+    else{
+        strcat(ptr, "<p>Pause execution: ON(Press to Resume)</p><a class=\"button button-on\" href=\"/path");
+        strcat(ptr, str); //Go to "/path1" or "/path2" and so on
+        strcat(ptr, "\">OFF</a>\n");
+    }
     strcat(ptr, "<p>Press to return to home</p><a class=\"button button-on\" href=\"/\">HOME</a>\n");
     strcat(ptr, "</body>\n");
     strcat(ptr, "</html>\n");
@@ -1941,32 +2073,6 @@ char* manual_mode()
 
     strcat(ptr, "</body>\n");
     strcat(ptr, "</html>\n");
-/*    strcat(ptr, "<html><head></head><style>");
-    strcat(ptr, "body {background-color: lightyellow}");
-    strcat(ptr, "h1 {color:blue}");
-    strcat(ptr, "p {color: blue}");
-    strcat(ptr, "button {color: blue;background:lightblue;border: 1px solid #000;border-radius: 8px;position: center;}");
-    strcat(ptr, "</style><body>");
-    strcat(ptr, "<div style=\"text-align:center\">");
-    strcat(ptr, "<h1>Direction Controller</h1><br><br>");
-    strcat(ptr, "<button style=\"height: 50px; width: 100px; font-size: 18px\">Start</button>");
-    strcat(ptr, "<img hspace=\"20\" style=\"padding-left: 200px\">");
-    strcat(ptr, "<button style=\"height: 50px; width: 100px; font-size: 18px\">Stop</button><br><br>");
-    strcat(ptr, "<span style=\"display:inline-block;padding:5px;border:1px solid #ff0000; font-size: 140%;font-weight:bold;\">");
-    strcat(ptr, "<br><button style=\"height: 70px; width: 80px; font-size: 18px\">Forward</button><br><br><br><br>");
-    strcat(ptr, "<img hspace=\"10\" style=\"padding-left: 5px\">");
-    strcat(ptr, "<button style=\"height: 70px; width: 80px; font-size: 18px\">Left</button>");
-    strcat(ptr, "<img hspace=\"20\" style=\"padding-left: 10px\">");
-    strcat(ptr, "<button style=\"height: 70px; width: 80px; font-size: 18px\">Stop</button>");
-    strcat(ptr, "<img hspace=\"20\" style=\"padding-left: 10px\">");
-    strcat(ptr, "<button style=\"height: 70px; width: 80px; font-size: 18px\">Right</button>");
-    strcat(ptr, "<img hspace=\"10\" style=\"padding-left: 5px\"><br><br><br><br>");
-    strcat(ptr, "<button style=\"height: 70px; width: 80px; font-size: 18px\">Back</button><br><br><br>");
-    strcat(ptr, "<p>Additional Options</p>");
-    strcat(ptr, "<img hspace=\"10\" style=\"padding-left: 5px\">");
-    strcat(ptr, "<button style=\"height: 50px; width: 100px; font-size: 18px\">HOME</button>");
-    strcat(ptr, "<img hspace=\"10\" style=\"padding-left: 5px\">");
-    strcat(ptr, "<br><br></span></div></body></html>");*/
     return ptr;
 }
 
@@ -2076,6 +2182,8 @@ httpd_handle_t start_webserver(void)
         httpd_register_uri_handler(server, &uri_manual);
         httpd_register_uri_handler(server, &uri_pause);
         httpd_register_uri_handler(server, &uri_auto);
+        httpd_register_uri_handler(server, &uri_autopause);
+        httpd_register_uri_handler(server, &uri_autostop);
         httpd_register_uri_handler(server, &uri_forward);
         httpd_register_uri_handler(server, &uri_left);
         httpd_register_uri_handler(server, &uri_right);

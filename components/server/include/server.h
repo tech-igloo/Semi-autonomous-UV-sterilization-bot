@@ -51,7 +51,9 @@ extern int record_flag;                     //Denote whether path is being recor
 extern int conn_flag;                      //Denote which Wifi mode the ESP is used : 0 = SAP, 1 to WIFI_NUM = STA wifi index
 extern int auto_flag;                       //Denote whether auto mode is on or off
 extern int manual_flag;
-extern int total ;                           //Total number of network credentials for STA mode stored till now
+extern int auto_pause_flag;                           //To pause
+extern int auto_stop_flag;                           //To stop while path is running
+extern int total;                           //Total number of network credentials for STA mode stored till now
 extern int total_paths;                     //Total number of paths stored till now
 extern int64_t prev_mili;                   //Used for determining the time duration between 2 commands while controlling the bot in manual mode
 extern int64_t curr_mili;                   //Used for determining the time duration between 2 commands while controlling the bot in manual mode
@@ -89,6 +91,8 @@ esp_err_t handle_delete_path3(httpd_req_t *req);
 esp_err_t handle_delete_path4(httpd_req_t *req);
 esp_err_t handle_delete_path5(httpd_req_t *req);
 esp_err_t handle_auto(httpd_req_t *req);
+esp_err_t handle_auto_pause(httpd_req_t *req);
+esp_err_t handle_auto_stop(httpd_req_t *req);
 esp_err_t handle_forward(httpd_req_t *req);
 esp_err_t handle_left(httpd_req_t *req);
 esp_err_t handle_right(httpd_req_t *req);
@@ -134,6 +138,7 @@ char* get_form(int local_flag);
 char* get_auto();
 char* get_path_specific(int local_flag);
 char* get_home(int local_flag);
+char* get_pathexec();
 char* manual_mode();
 char* SendHTML(uint8_t local_flag);
 char* get_stop();
