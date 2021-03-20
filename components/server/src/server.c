@@ -409,6 +409,13 @@ httpd_uri_t uri_sta_data5 = {
      .user_ctx = NULL
  };
 
+ httpd_uri_t uri_path_name = {
+     .uri = "/pathname",
+     .method = HTTP_POST,
+     .handler = handle_pathname,
+     .user_ctx = NULL
+ };
+
 /*In all of the callback functions below, the HTML Code for displaying
   the webpage is passed using the 'resp' string variable*/
 
@@ -471,7 +478,7 @@ esp_err_t handle_path1(httpd_req_t *req)
     //ESP_LOGI(TAG, "On core %d", xPortGetCoreID());
     ESP_LOGI(TAG, "Now displaying /path1");
     ESP_LOGI(TAG, "Callback Function called: handle_path1()");
-    ESP_LOGI(TAG, "Webpage displayed using HTML Code returned by: get_home(0)");
+    ESP_LOGI(TAG, "Webpage displayed using HTML Code returned by: get_pathexec()");
     return ESP_OK;
 }
 
@@ -486,7 +493,7 @@ esp_err_t handle_path2(httpd_req_t *req)
     //ESP_LOGI(TAG, "On core %d", xPortGetCoreID());
 	ESP_LOGI(TAG, "Now displaying /path2");
     ESP_LOGI(TAG, "Callback Function called: handle_path2()");
-    ESP_LOGI(TAG, "Webpage displayed using HTML Code returned by: get_home(0)");
+    ESP_LOGI(TAG, "Webpage displayed using HTML Code returned by: get_pathexec()");
     return ESP_OK;
 }
 
@@ -501,7 +508,7 @@ esp_err_t handle_path3(httpd_req_t *req)
     //ESP_LOGI(TAG, "On core %d", xPortGetCoreID());
     ESP_LOGI(TAG, "Now displaying /path3");
     ESP_LOGI(TAG, "Callback Function called: handle_path3()");
-    ESP_LOGI(TAG, "Webpage displayed using HTML Code returned by: get_home(0)");
+    ESP_LOGI(TAG, "Webpage displayed using HTML Code returned by: get_pathexec()");
     return ESP_OK;
 }
 
@@ -516,7 +523,7 @@ esp_err_t handle_path4(httpd_req_t *req)
     //ESP_LOGI(TAG, "On core %d", xPortGetCoreID());
     ESP_LOGI(TAG, "Now displaying /path4");
     ESP_LOGI(TAG, "Callback Function called: handle_path4()");
-    ESP_LOGI(TAG, "Webpage displayed using HTML Code returned by: get_home(0)");
+    ESP_LOGI(TAG, "Webpage displayed using HTML Code returned by: get_pathexec()");
     return ESP_OK;
 }
 
@@ -531,7 +538,7 @@ esp_err_t handle_path5(httpd_req_t *req)
     //ESP_LOGI(TAG, "On core %d", xPortGetCoreID());
     ESP_LOGI(TAG, "Now displaying /path5");
     ESP_LOGI(TAG, "Callback Function called: handle_path5()");
-    ESP_LOGI(TAG, "Webpage displayed using HTML Code returned by: get_home(0)");
+    ESP_LOGI(TAG, "Webpage displayed using HTML Code returned by: get_pathexec()");
     return ESP_OK;
 }
 
@@ -1060,12 +1067,44 @@ esp_err_t handle_save(httpd_req_t *req)
     update_number(1); //total_paths is updated in paths.txt and the global variable is also updated
     ESP_ERROR_CHECK(convert_paths(total_paths+1));  //convert the saved path into co-ordinate based representation, you can comment this part out
     ESP_LOGI(TAG, "Now total paths---------------- %d", total_paths);
-    char* resp = get_home(3);
+
+    char* resp = get_pathform();  //Link the name to the path
     httpd_resp_send(req, resp, strlen(resp));
     free(resp);
     //ESP_LOGI(TAG, "On core %d", xPortGetCoreID());
     ESP_LOGI(TAG, "Now displaying /save");
     ESP_LOGI(TAG, "Callback Function called: handle_save()");
+    ESP_LOGI(TAG, "Webpage displayed using HTML Code returned by: get_pathform(%d)", total_paths);
+    return ESP_OK;
+}
+
+esp_err_t handle_pathname(httpd_req_t *req)
+{   
+    ESP_LOGI(TAG, "Now displaying /pathname");
+    int len = req->content_len;     //Get the length of the header
+    int ret, remaining = req->content_len;      //Get how much length is left to be read
+    while (remaining > 0) {									//this method of taking the data was taken from online
+        if ((ret = httpd_req_recv(req, buf, len)) <= 0) {   //Store len lngth of data from the header in the string variable "buf" 
+            if (ret == HTTPD_SOCK_ERR_TIMEOUT) {
+                continue;
+            }
+            return ESP_FAIL;
+        }
+        remaining -= ret;
+    }
+    buf[len] = '\0';                        //Put terminating character in proper place
+    ESP_LOGI(TAG, "Buffer: %s", buf);
+    // we need to change the format of path.txt or creat some space for path name, also after receiving we need to update it in the file.
+    char* path_name = strtok(buf, "=");   //ssid_data now contains "SSID"
+    path_name = strtok(NULL, "=");          //ssid_data now contains "[ssid]"
+    strcpy(pathn[total_paths], path_name);
+
+    char* resp = get_home(3);  //Link the name to the path
+    httpd_resp_send(req, resp, strlen(resp));
+    free(resp);
+    //ESP_LOGI(TAG, "On core %d", xPortGetCoreID());
+    ESP_LOGI(TAG, "Now displaying /pathname");
+    ESP_LOGI(TAG, "Callback Function called: handle_pathname()");
     ESP_LOGI(TAG, "Webpage displayed using HTML Code returned by: get_home(3)");
     return ESP_OK;
 }
@@ -1783,8 +1822,8 @@ char* get_sta()
         sprintf(str, "%d", i+1);//convert (i+1) to string
         strcat(ptr, "<p>Press for more options</p><a class=\"button button-on\" href=\"/sta");
         strcat(ptr, str); //On clicking go to "/sta1" or "/sta2" or so on dependingon value of (i+1)
-        strcat(ptr, "\">Network ");
-        strcat(ptr, str); //For displaying "Network 1" or "Network 2" and so on
+        strcat(ptr, "\">SSID: ");
+        strcat(ptr, ssid[i]); //For displaying "Network 1" or "Network 2" and so on
         strcat(ptr, "</a>\n");
     }
     strcat(ptr, "<p>Press to go back</p><a class=\"button button-on\" href=\"/choose\">BACK</a>\n");
@@ -1852,6 +1891,18 @@ char* get_form(int local_flag)  //local_flag min value is 1.
     return ptr;
 }
 
+char* get_pathform()
+{
+    char* ptr = (char *)calloc(2048, sizeof(char));
+    strcat(ptr, "<form action=\"/pathname\" method = \"post\">\n"); 
+    strcat(ptr, "<label for=\"pname\">Path name:</label><br>\n");
+    strcat(ptr, "<input type=\"text\" id=\"pname\" name=\"pname\" maxlength=SSID_LEN><br>\n");
+    strcat(ptr, "<input type=\"submit\" value=\"Submit\">\n");
+    strcat(ptr, "<input type=\"reset\">\n");
+    strcat(ptr, "</form>");
+    return ptr;
+}
+
 /*HTML code for showing "/auto" page*/
 char* get_auto()
 {
@@ -1883,8 +1934,8 @@ char* get_auto()
         sprintf(str, "%d", i);
         strcat(ptr, "<p>Press for more details</p><a class=\"button button-on\" href=\"/path_details");
         strcat(ptr, str); //Go to "/path_details1" or "/path_details2" and so on
-        strcat(ptr, "\">Path ");
-        strcat(ptr, str); //Display "Path 1 " or "Path 2 " and so on
+        strcat(ptr, "\">Path: ");
+        strcat(ptr, pathn[i]); //Display "Path 1 " or "Path 2 " and so on
         strcat(ptr, "</a>\n");
     }    
     strcat(ptr, "<p>Press to return to home</p><a class=\"button button-on\" href=\"/\">HOME</a>\n");
@@ -2010,7 +2061,7 @@ char* get_pathexec()
     if(!auto_pause_flag)
         strcat(ptr, "<p>Pause execution: OFF(Press to Pause)</p><a class=\"button button-on\" href=\"/pauseauto\">ON</a>\n");
     else{
-        strcat(ptr, "<p>Pause execution: ON(Press to Resume)</p><a class=\"button button-on\" href=\"/path");
+        strcat(ptr, "<p>Pause execution: ON(Press to Resume)</p><a class=\"button button-off\" href=\"/path");
         strcat(ptr, str); //Go to "/path1" or "/path2" and so on
         strcat(ptr, "\">OFF</a>\n");
     }
@@ -2235,6 +2286,7 @@ httpd_handle_t start_webserver(void)
         httpd_register_uri_handler(server, &uri_sta_data3);
         httpd_register_uri_handler(server, &uri_sta_data4);
         httpd_register_uri_handler(server, &uri_sta_data5);
+        httpd_register_uri_handler(server, &uri_path_name);
     }
     ESP_LOGI(TAG, "On core %d", xPortGetCoreID());
     return server;

@@ -63,6 +63,7 @@ char copy[DATA_LEN];                     //Used for extracting password from POS
 char line_str[LINE_LEN];                 //Used for extracting lines from stored files
 char ssid[WIFI_NUM][SSID_LEN];           //Store all the network ssids that the ESP can use in STA mode
 char pass[WIFI_NUM][PASS_LEN];           //Store all the network passwords that the ESP can use in STA mode
+char pathn[5][32];                       //path name
 
 struct httpd_uri_t {                     //structure intialization for all the structure pointer
     const char       *uri;               //linking web addresses and corresponding call back functions
@@ -100,6 +101,7 @@ esp_err_t handle_back(httpd_req_t *req);
 esp_err_t handle_stop(httpd_req_t *req);
 esp_err_t handle_pause(httpd_req_t *req);
 esp_err_t handle_save(httpd_req_t *req);
+esp_err_t handle_pathname(httpd_req_t *req);
 esp_err_t handle_choose(httpd_req_t *req);
 esp_err_t handle_sap(httpd_req_t *req);
 esp_err_t handle_sta(httpd_req_t *req);
@@ -135,6 +137,7 @@ char* choose_page();
 char* get_sta();
 char* get_sta_data(int local_flag);
 char* get_form(int local_flag);  
+char* get_pathform();
 char* get_auto();
 char* get_path_specific(int local_flag);
 char* get_home(int local_flag);

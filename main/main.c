@@ -20,7 +20,7 @@ int manual_flag = 0;                     //To check if it is in manual motion mo
 int auto_stop_flag = 0;
 int auto_pause_flag = 0;
 static TaskHandle_t Task1;                      //Task handle to keep track of created task running on Core 1
-
+char pathn[5][32] = {0};
 
 /*Replaces the nth line in the file /wifi_conf.txt with the line supplied in the argument
   The 1st line contains "SAP" or "STA" to denote which connection mode to use
