@@ -97,11 +97,12 @@ esp_err_t update_number(int n){
             if(linectr == 1){				//since it is stored in the 1st line
                 fprintf(f_w, "%s", line);   //Update the value stored in the file by writing the 'line' variable that contains the string representaion of total_paths
                 fprintf(f_w, "%s", "\n");
+                ESP_LOGI(TAG, "%s \n", line);
             }
-            else
+            else{
                 fprintf(f_w, "%s", str);	//else write the string that was extracted from the file
                 ESP_LOGI(TAG, "%s", str);
-
+            }
         }
     }
     fclose(f_r);
@@ -192,6 +193,7 @@ esp_err_t delete_specific_path(int n)
     fclose(f_w);
     remove("/spiffs/paths.txt");
     rename("/spiffs/temp.txt", "/spiffs/paths.txt");
+    update_pathname();
     return ESP_OK;  
 }
 
@@ -429,6 +431,49 @@ esp_err_t update_paths()
     return ESP_OK;
 }
 
+esp_err_t update_pathname()
+{
+    char str[LINE_LEN];
+    FILE* f_r = fopen("/spiffs/paths.txt", "r");
+    if(f_r == NULL){
+        printf("Error opening file paths.txt\n");
+        return ESP_FAIL;
+    }
+    fgets(str, LINE_LEN, f_r);   //to ignore the first line
+
+    for (int i = 0; i < total_paths; i++)
+    {   
+        strcpy(str, "\0");					//initialize to null string
+        fgets(str, LINE_LEN, f_r);
+        
+        char *token, *token1;
+        token = strtok(str, " ");
+        while( token != NULL ) {
+            token1 = strtok(NULL, " ");             //Get the next element
+            if (token1 != NULL)
+            {
+                //ESP_LOGI(TAG, "token1: %s", token1);
+            }
+            else{
+                strcpy(pathn[i], token);
+                break;
+            }
+            token = strtok(NULL, " ");
+            if (token != NULL)
+            {
+                //ESP_LOGI(TAG, "token1: %s", token1);
+            }
+            else{
+                strcpy(pathn[i], token1);
+                break;
+            }  
+        } 
+        //ESP_LOGI(TAG, "path name array %s", pathn[i]);
+    }
+    fclose(f_r);
+    return ESP_OK; 
+}
+
 /*Not really required(Ref: Official Github Repo)*/
 static void wifi_event_handler(void* arg, esp_event_base_t event_base,
                                     int32_t event_id, void* event_data)
@@ -625,6 +670,7 @@ void app_main(void)
                     1);          /* pin task to core 1 */                  
   	//delay(500);
     ESP_ERROR_CHECK(update_paths());    //Update the variables related to paths.txt
+    ESP_ERROR_CHECK(update_pathname()); //:This will update the pathn[] array by reading all the path's last element
     ESP_ERROR_CHECK(mdns_init());       //Initialize MDNS Service
     ESP_ERROR_CHECK(mdns_hostname_set("esp32"));    //Set hostname to esp32. Now you can either type the IP Address or "esp32.local" for a device which has MDNS
     ESP_LOGI(TAG, "mdns hostname set to: [esp32]");

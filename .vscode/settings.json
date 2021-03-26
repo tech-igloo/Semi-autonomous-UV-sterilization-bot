@@ -18,7 +18,8 @@
         "*.inc": "c",
         "server.h": "c",
         "algo.h": "c",
-        "*.ipp": "c"
+        "*.ipp": "c",
+        "functional": "c"
     },
     "idf.flashType": "UART",
     "cmake.configureOnOpen": false

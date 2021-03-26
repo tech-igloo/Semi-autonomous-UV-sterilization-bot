@@ -346,63 +346,133 @@ esp_err_t convert_paths(int n){
                 strcpy(aux1,aux);
                 ESP_LOGI(TAG, "%s", aux1);
                 //Length calculation for dynamic allocation
-                char* temp_token = strtok(aux, "\t");
+                char *temp_token, *temp_token1;
+                temp_token = strtok(aux, "\t");
                 while(temp_token!=NULL)
-                {
-                    ch = temp_token[0];
-                    temp_token++;
-                    if(ch == 'f' || ch == 'b')
-                    len ++;                 
+                {  
+                    temp_token1 = strtok(NULL, "\t");             //Get the next element
+                    if (temp_token1 != NULL){
+                        ch = temp_token[0];
+                        temp_token++;
+                        if(ch == 'f' || ch == 'b')
+                        len ++; 
+                    }
+                    else
+                        break;
                     temp_token = strtok(NULL, "\t");
+                    if (temp_token != NULL){
+                        ch = temp_token1[0];
+                        temp_token1++;
+                        if(ch == 'f' || ch == 'b')
+                        len ++; 
+                    }
+                    else
+                        break;
                 }
-                char* result = (char *)calloc((len*2*10+1),sizeof(char));
+                char* result = (char *)calloc((len*2*10+1+32),sizeof(char));  //+32 for the name
                 strcpy(result, "");
-                ESP_LOGI(TAG, "Length: %d", len*4*9+1);
+                ESP_LOGI(TAG, "Length: %d", len*4*9+1+32);
                 //Result string storage
-                char* token = strtok(aux1, "\t");
+                char *token, *token1;
+                token = strtok(aux1, "\t");
                 while(token!=NULL)
-                {
-                    ch = token[0];
-                    token++;
-                    val = atof(token);    //val is in meters 
-                    if(ch == 'f'){
-                        current.x = prev.x + val*cos(prev.theta);
-                        current.y = prev.y + val*sin(prev.theta);
-                        ESP_LOGI(TAG, "(%f, %f)", current.x, current.y);
-                        strcpy(temp, "");
-                        snprintf(temp, 9, "%f", current.x);
-                        strcat(result, temp);
-                        strcat(result, " ");
-                        strcpy(temp, "");
-                        snprintf(temp, 9, "%f", current.y);
-                        strcat(result, temp);
-                        strcat(result, " ");
-                        current.theta = prev.theta;
-                        prev = current;
-                    }
-                    else if(ch == 'b'){
-                        current.x = prev.x - val*cos(prev.theta);  //don't convert as already in radians when using encoders
-                        current.y = prev.y - val*sin(prev.theta);
-                        ESP_LOGI(TAG, "(%f, %f)", current.x, current.y);
-                        strcpy(temp, "");
-                        snprintf(temp, 9, "%f", current.x);
-                        strcat(result, temp);
-                        strcat(result, " ");
-                        strcpy(temp, "");
-                        snprintf(temp, 9, "%f", current.y);
-                        strcat(result, temp);
-                        strcat(result, " ");
-                        current.theta = prev.theta;
-                        prev = current;
-                    }
-                    else if(ch == 'r'){
-                        //val is in radian only
-                        prev.theta = prev.theta + val;
-                    }
-                    else if(ch == 'l'){
+                {   
+                    token1 = strtok(NULL, "\t");
+                    if(token1 != NULL){
+                        ch = token[0];
+                        token++;
+                        val = atof(token);    //val is in meters 
+                        if(ch == 'f'){
+                            current.x = prev.x + val*cos(prev.theta);
+                            current.y = prev.y + val*sin(prev.theta);
+                            ESP_LOGI(TAG, "(%f, %f)", current.x, current.y);
+                            strcpy(temp, "");
+                            snprintf(temp, 9, "%f", current.x);
+                            strcat(result, temp);
+                            strcat(result, " ");
+                            strcpy(temp, "");
+                            snprintf(temp, 9, "%f", current.y);
+                            strcat(result, temp);
+                            strcat(result, " ");
+                            current.theta = prev.theta;
+                            prev = current;
+                        }
+                        else if(ch == 'b'){
+                            current.x = prev.x - val*cos(prev.theta);  //don't convert as already in radians when using encoders
+                            current.y = prev.y - val*sin(prev.theta);
+                            ESP_LOGI(TAG, "(%f, %f)", current.x, current.y);
+                            strcpy(temp, "");
+                            snprintf(temp, 9, "%f", current.x);
+                            strcat(result, temp);
+                            strcat(result, " ");
+                            strcpy(temp, "");
+                            snprintf(temp, 9, "%f", current.y);
+                            strcat(result, temp);
+                            strcat(result, " ");
+                            current.theta = prev.theta;
+                            prev = current;
+                        }
+                        else if(ch == 'r'){
+                            //val is in radian only
+                            prev.theta = prev.theta + val;
+                        }
+                        else if(ch == 'l'){
                         prev.theta = prev.theta - val;
                     }
+                    }
+                    else{
+                        strcat(result, token);
+                        strcat(result, " ");
+                        break;
+                    }
                     token = strtok(NULL, "\t");
+                    if (token != NULL){
+                        ch = token1[0];
+                        token1++;
+                        val = atof(token1);    //val is in meters 
+                        if(ch == 'f'){
+                            current.x = prev.x + val*cos(prev.theta);
+                            current.y = prev.y + val*sin(prev.theta);
+                            ESP_LOGI(TAG, "(%f, %f)", current.x, current.y);
+                            strcpy(temp, "");
+                            snprintf(temp, 9, "%f", current.x);
+                            strcat(result, temp);
+                            strcat(result, " ");
+                            strcpy(temp, "");
+                            snprintf(temp, 9, "%f", current.y);
+                            strcat(result, temp);
+                            strcat(result, " ");
+                            current.theta = prev.theta;
+                            prev = current;
+                        }
+                        else if(ch == 'b'){
+                            current.x = prev.x - val*cos(prev.theta);  //don't convert as already in radians when using encoders
+                            current.y = prev.y - val*sin(prev.theta);
+                            ESP_LOGI(TAG, "(%f, %f)", current.x, current.y);
+                            strcpy(temp, "");
+                            snprintf(temp, 9, "%f", current.x);
+                            strcat(result, temp);
+                            strcat(result, " ");
+                            strcpy(temp, "");
+                            snprintf(temp, 9, "%f", current.y);
+                            strcat(result, temp);
+                            strcat(result, " ");
+                            current.theta = prev.theta;
+                            prev = current;
+                        }
+                        else if(ch == 'r'){
+                            //val is in radian only
+                            prev.theta = prev.theta + val;
+                        }
+                        else if(ch == 'l'){
+                            prev.theta = prev.theta - val;
+                    }
+                    }
+                    else{
+                        strcat(result, token1);
+                        strcat(result, " ");
+                        break;
+                    }
                 }
                 strcat(result, "\n");
                 ESP_LOGI(TAG, "%s", result);
@@ -459,15 +529,24 @@ esp_err_t get_path(int local_flag){
     ESP_LOGI(TAG, "Get Path print %s", temp);
     fclose(f_r);
     /*To get x,y coordinates of the path*/
-    char* token = strtok(temp, " ");    //The elements are seperated by " "
+    char *token, *token1;
+    double xCoor, yCoor;
+    token = strtok(temp, " ");    //The elements are seperated by " "
 
     flag = -1; 
     move_stop();                
     while(token!=NULL)					//iterate through each of the elements
     {
-        double xCoor = atof(token);       //Convert the value from string to float
-        token = strtok(NULL, " ");             //Get the next element
-        double yCoor = atof(token);      
+        token1 = strtok(NULL, " ");             //Get the next element
+        if (token1 != NULL)
+            xCoor = atof(token);       //Convert the value from string to float//printf("token = %s\n",token);
+        else
+            break;
+        token = strtok(NULL, " ");
+        if (token != NULL)
+            yCoor = atof(token1);       //Convert the value from string to float//printf("token1 = %s\n",token1);
+        else
+            break;   
         ESP_LOGI(TAG, "Current (X,Y):(%f, %f)",xCoor, yCoor);
         /*All the code to reach the destination with obstacle avoidance*/
         updateParams(xCoor, yCoor);
@@ -481,9 +560,9 @@ esp_err_t get_path(int local_flag){
         }
         if(auto_stop_flag)  //When /STOPauto is pressed while the path is being executed
             break;
-        token = strtok(NULL, " "); 
-        if (!strcmp(token,"\n"))   //This took a long time to figure out
-            break;           
+        // token = strtok(NULL, " "); 
+        // if (!strcmp(token,"\n"))   //This took a long time to figure out
+        //     break;           
     }
     auto_flag = 0;
 

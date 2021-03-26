@@ -1004,7 +1004,7 @@ esp_err_t handle_stop(httpd_req_t *req)
         }
         fputc(det, f);
         fprintf(f, "%.3f", time_duration);
-        fputc('\n', f); //Since this is the last entry, instead of putting a '\t', we put a '\n' so that the next path will be saved in the next line
+        fputc('\t', f); 
         //fputc('\0', f);
         fclose(f);
     }
@@ -1064,10 +1064,6 @@ esp_err_t handle_pause(httpd_req_t *req)
 /*Callback function whenever "/save is accessed"*/
 esp_err_t handle_save(httpd_req_t *req)
 {
-    update_number(1); //total_paths is updated in paths.txt and the global variable is also updated
-    ESP_ERROR_CHECK(convert_paths(total_paths+1));  //convert the saved path into co-ordinate based representation, you can comment this part out
-    ESP_LOGI(TAG, "Now total paths---------------- %d", total_paths);
-
     char* resp = get_pathform();  //Link the name to the path
     httpd_resp_send(req, resp, strlen(resp));
     free(resp);
@@ -1097,8 +1093,21 @@ esp_err_t handle_pathname(httpd_req_t *req)
     // we need to change the format of path.txt or creat some space for path name, also after receiving we need to update it in the file.
     char* path_name = strtok(buf, "=");   //ssid_data now contains "SSID"
     path_name = strtok(NULL, "=");          //ssid_data now contains "[ssid]"
-    strcpy(pathn[total_paths], path_name);
+    FILE* f = fopen("/spiffs/paths.txt", "a");
+    if (f == NULL) {
+        ESP_LOGE(TAG, "Failed to open file for writing");
+        return ESP_FAIL;
+    }
+    fprintf(f, "%s", path_name);
+    fputc('\n', f); //Since this is the last entry, instead of putting a '\t', we put a '\n' so that the next path will be saved in the next line
+    fclose(f);
 
+    //call these only when the path with name is done
+    update_number(1); //total_paths is updated in paths.txt and the global variable is also updated
+    ESP_ERROR_CHECK(convert_paths(total_paths+1));  //convert the saved path into co-ordinate based representation, you can comment this part out
+    update_pathname(); //:This will update the pathn[] array by reading all the path's last element
+    ESP_LOGI(TAG, "Now total paths---------------- %d", total_paths);
+    
     char* resp = get_home(3);  //Link the name to the path
     httpd_resp_send(req, resp, strlen(resp));
     free(resp);
@@ -1935,7 +1944,7 @@ char* get_auto()
         strcat(ptr, "<p>Press for more details</p><a class=\"button button-on\" href=\"/path_details");
         strcat(ptr, str); //Go to "/path_details1" or "/path_details2" and so on
         strcat(ptr, "\">Path: ");
-        strcat(ptr, pathn[i]); //Display "Path 1 " or "Path 2 " and so on
+        strcat(ptr, pathn[i-1]); //Display "Path 1 " or "Path 2 " and so on
         strcat(ptr, "</a>\n");
     }    
     strcat(ptr, "<p>Press to return to home</p><a class=\"button button-on\" href=\"/\">HOME</a>\n");
