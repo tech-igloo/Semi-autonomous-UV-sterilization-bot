@@ -416,6 +416,19 @@ httpd_uri_t uri_sta_data5 = {
      .user_ctx = NULL
  };
 
+httpd_uri_t uri_docking = {
+    .uri = "/dock",
+    .method = HTTP_GET,
+    .handler = handle_docking,
+    .user_ctx = NULL
+};
+
+httpd_uri_t uri_estop = {
+    .uri = "/estop",
+    .method = HTTP_GET,
+    .handler = handle_estop,
+    .user_ctx = NULL
+};
 /*In all of the callback functions below, the HTML Code for displaying
   the webpage is passed using the 'resp' string variable*/
 
@@ -472,6 +485,7 @@ esp_err_t handle_path1(httpd_req_t *req)
 {
     auto_flag = 1; //Execute Path 1
     auto_pause_flag = 0;
+    docking_flag = 0;
     char* resp = get_pathexec();   //Get the HTML Code to display
     httpd_resp_send(req, resp, strlen(resp));   //Display the HTML Code
     free(resp);
@@ -487,6 +501,7 @@ esp_err_t handle_path2(httpd_req_t *req)
 {
     auto_flag = 2; //Execute Path 2
     auto_pause_flag = 0;
+    docking_flag = 0;
     char* resp = get_pathexec();
     httpd_resp_send(req, resp, strlen(resp));
     free(resp);
@@ -502,6 +517,7 @@ esp_err_t handle_path3(httpd_req_t *req)
 {   
     auto_flag = 3; //Execute Path 3
     auto_pause_flag = 0;
+    docking_flag = 0;
     char* resp = get_pathexec();
     httpd_resp_send(req, resp, strlen(resp));
     free(resp);
@@ -517,6 +533,7 @@ esp_err_t handle_path4(httpd_req_t *req)
 {
     auto_flag = 4; //Execute Path 4
     auto_pause_flag = 0;
+    docking_flag = 0;
     char* resp = get_pathexec();
     httpd_resp_send(req, resp, strlen(resp));
     free(resp);
@@ -532,6 +549,7 @@ esp_err_t handle_path5(httpd_req_t *req)
 {
     auto_flag = 5; //Execute PAth 5
     auto_pause_flag = 0;
+    docking_flag = 0;
     char* resp = get_pathexec();
     httpd_resp_send(req, resp, strlen(resp));
     free(resp);
@@ -547,7 +565,8 @@ esp_err_t handle_manual(httpd_req_t *req)
 {   
     manual_flag = 1; //only when in manual mode, set to 0 again if start(recording) is pressed
     record_flag = 0; //recording has not yet started
-    
+    docking_flag = 0;
+
     lin_speed = DEFAULT_LIN_SPEED;
     ang_speed = DEFAULT_ANG_SPEED;
     
@@ -1732,7 +1751,37 @@ esp_err_t handle_data_5(httpd_req_t *req)
     return ESP_OK;
 }
 
+esp_err_t handle_docking(httpd_req_t *req)
+{
+    if(docking_flag){
+        docking_enable = 1;
+        docking_flag = 0;
+    }
 
+    char* resp = get_home(0);   //Get the HTML Code to display
+    httpd_resp_send(req, resp, strlen(resp));   //Display the HTML Code
+    free(resp);
+
+    ESP_LOGI(TAG, "Now displaying /dock");
+    ESP_LOGI(TAG, "Callback Function called: handle_docking()");
+    ESP_LOGI(TAG, "Webpage displayed using HTML Code returned by: get_home()");
+    return ESP_OK;
+
+}
+
+esp_err_t handle_estop(httpd_req_t *req)
+{
+    emergencySTOP = 1;
+
+    char* resp = get_home(0);   //Get the HTML Code to display
+    httpd_resp_send(req, resp, strlen(resp));   //Display the HTML Code
+    free(resp);
+
+    ESP_LOGI(TAG, "Now displaying /estop");
+    ESP_LOGI(TAG, "Callback Function called: handle_estop()");
+    ESP_LOGI(TAG, "Webpage displayed using HTML Code returned by: get_home()");
+    return ESP_OK;
+}
 /*HTML Code for displaying the home page "/" */
 char* default_page()
 {
@@ -1759,6 +1808,14 @@ char* default_page()
     strcat(ptr, "<p>Press to select Manual mode</p><a class=\"button button-on\" href=\"/manual\">MANUAL</a>\n");//On clicking go to "/manual"
     strcat(ptr, "<p>Press to select Auto mode</p><a class=\"button button-on\" href=\"/auto\">AUTO</a>\n");//On clicking go to "/auto"
     strcat(ptr, "<p>Press to choose Connection Mode</p><a class=\"button button-on\" href=\"/choose\">SAP/STA</a>\n");//On clicking go to "/choose"
+    if (docking_flag)
+    {
+        strcat(ptr, "<p>Press to Dock the bot</p><a class=\"button button-on\" href=\"/dock\">Docking</a>\n");//On clicking go to "/dock"
+    }
+    if (docking_enable)
+    {
+        strcat(ptr, "<p>Press to STOP the bot</p><a class=\"button button-on\" href=\"/estop\">E-STOP</a>\n");//On clicking go to "/estop"
+    }  
     strcat(ptr, "<p>Press to reset the ESP</p><a class=\"button button-on\" href=\"/reset\">FACTORY\nRESET</a>\n");//On clicking go to "/reset"
 
     strcat(ptr, "</body>\n");
@@ -2034,7 +2091,12 @@ char* get_home(int local_flag)
         strcat(ptr, "<h3>Saved Successfully</h3>\n");
     else if(local_flag == 4)
         strcat(ptr, "<h3>Added Successfully</h3>\n");
-    strcat(ptr, "<p>Press to return to home</p><a class=\"button button-on\" href=\"/\">HOME</a>\n");
+    if(!docking_enable)
+        strcat(ptr, "<p>Press to return to home</p><a class=\"button button-on\" href=\"/\">HOME</a>\n");
+    else{
+        strcat(ptr, "<h3>Docking is being executed</h3>\n");
+        strcat(ptr, "<p>Press to return to home once docking is done</p><a class=\"button button-on\" href=\"/dock\">HOME</a>\n");
+    }
     strcat(ptr, "</body>\n");
     strcat(ptr, "</html>\n");
     return ptr; 
@@ -2296,6 +2358,8 @@ httpd_handle_t start_webserver(void)
         httpd_register_uri_handler(server, &uri_sta_data4);
         httpd_register_uri_handler(server, &uri_sta_data5);
         httpd_register_uri_handler(server, &uri_path_name);
+        httpd_register_uri_handler(server, &uri_docking);
+        httpd_register_uri_handler(server, &uri_estop);
     }
     ESP_LOGI(TAG, "On core %d", xPortGetCoreID());
     return server;

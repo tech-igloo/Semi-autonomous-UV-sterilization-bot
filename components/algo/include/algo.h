@@ -62,6 +62,10 @@ extern double accumulated_errorR;
 extern double current_errorR;                 
 extern double prev_errorR;                    
 
+extern double xCoor;                          //For auto mode
+extern double yCoor;
+extern int lastAutoPath;
+
 //extern int pid_flag;                        //flag that signifies that the PID controller's job is done
 
 extern double Kp;                //Common gains for now
@@ -98,6 +102,7 @@ int map1(float x, float in_min, float in_max, int out_min, int out_max);
 char determine(int local_flag);
 esp_err_t convert_paths(int n);
 esp_err_t get_path(int local_flag);
+void docking_algo(char *pathstring);
 void IRAM_ATTR gpio_encoder_isr_handler(void* arg);
 
 void updateParams(double, double);

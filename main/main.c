@@ -19,6 +19,9 @@ int auto_flag = 0;                       //Denote whether auto mode is on or off
 int manual_flag = 0;                     //To check if it is in manual motion mode
 int auto_stop_flag = 0;
 int auto_pause_flag = 0;
+int docking_flag = 0;
+int docking_enable = 0;
+int emergencySTOP = 0;
 static TaskHandle_t Task1;                      //Task handle to keep track of created task running on Core 1
 char pathn[5][32] = {0};
 
@@ -636,13 +639,28 @@ void Task1code( void * pvParameters ){
             else if(flag == 3) move_back();
             else move_stop();
         }
+        //For autonomous mode
         else if(auto_flag > 0){
             ESP_ERROR_CHECK(get_path(auto_flag));
             if(!auto_stop_flag)
                 ESP_LOGI(TAG, "Path executed successfully");
-            else
+            else{
                 ESP_LOGI(TAG, "Path execution stopped");
-            auto_stop_flag = 0;
+                auto_stop_flag = 0;
+            }
+            //if(!(xCoor ~= 0 && yCoor ~= 0))     For cases when docking is not possible
+                docking_flag = 1;   //Only available when out of auto either via stop or after completion
+        }
+        //For docking mode
+        else if(docking_enable){
+            ESP_ERROR_CHECK(get_path(lastAutoPath));
+            if(!emergencySTOP)
+                ESP_LOGI(TAG, "Docking executed successfully");
+            else{
+                ESP_LOGI(TAG, "Docking stopped");
+                emergencySTOP = 0;
+            }
+            docking_enable = 0;
         }
         else
             move_stop();

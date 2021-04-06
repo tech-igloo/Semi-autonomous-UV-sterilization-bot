@@ -29,6 +29,10 @@ double Kp = 1;                   //common gains for both the PID blocks for now
 double Kd = 1/sampleTimeInSec;
 double Ki = 1*sampleTimeInSec;
 
+double xCoor = 0;
+double yCoor = 0;
+int lastAutoPath = 0;
+
 static double angle_required = 0;                //angle that the bot needs to rotate to align itself with its destination point
 static double dist_required = 0;                 //distance from stop point that the bot needs to travel to reach the destination point
 static int rotating_flag = 1;                   //flag that signifies whether the bot should rotate or move along a straight line
@@ -498,6 +502,8 @@ esp_err_t get_path(int local_flag){
     
     gpio_intr_enable(LEFT_ENCODERA);    //Enabled when in active mode(ready to move)
     gpio_intr_enable(RIGHT_ENCODERA);
+    flag = -1; 
+    move_stop();
 
     FILE* f_r = fopen("/spiffs/paths.txt", "r");
     if (f_r == NULL) {
@@ -528,13 +534,14 @@ esp_err_t get_path(int local_flag){
     }
     ESP_LOGI(TAG, "Get Path print %s", temp);
     fclose(f_r);
+    if (docking_enable)
+    {
+        docking_algo(temp);  //update this fucntion from c file.
+    }
+    
     /*To get x,y coordinates of the path*/
     char *token, *token1;
-    double xCoor, yCoor;
     token = strtok(temp, " ");    //The elements are seperated by " "
-
-    flag = -1; 
-    move_stop();                
     while(token!=NULL)					//iterate through each of the elements
     {
         token1 = strtok(NULL, " ");             //Get the next element
@@ -549,8 +556,9 @@ esp_err_t get_path(int local_flag){
             break;   
         ESP_LOGI(TAG, "Current (X,Y):(%f, %f)",xCoor, yCoor);
         /*All the code to reach the destination with obstacle avoidance*/
-        updateParams(xCoor, yCoor);
-        while (!run && !auto_stop_flag)
+        if(run)
+            updateParams(xCoor, yCoor);
+        while (!run && !auto_stop_flag && !emergencySTOP)
         {
             if (!auto_pause_flag)
             {
@@ -558,18 +566,74 @@ esp_err_t get_path(int local_flag){
                 actuationAuto();
             }
         }
-        if(auto_stop_flag)  //When /STOPauto is pressed while the path is being executed
+        if(auto_stop_flag || emergencySTOP){  //When /STOPauto is pressed while the path is being executed
+            init_pid();     //Not reseting
             break;
+        }
         // token = strtok(NULL, " "); 
         // if (!strcmp(token,"\n"))   //This took a long time to figure out
         //     break;           
     }
+    lastAutoPath = auto_flag;
     auto_flag = 0;
 
     gpio_intr_disable(LEFT_ENCODERA);  //Disabled interrupt once done  
     gpio_intr_disable(RIGHT_ENCODERA);
 
     return ESP_OK;
+}
+
+/*Execute the docking to home coordinate for the last path executed in auto mode */
+void docking_algo(char *pathString){
+    char *token, *token1;
+    float pathArray[100] = {0};
+    float temopcoord = 0.0;
+    int i=0;
+
+    token = strtok(pathString, " ");
+    while(token != NULL) {
+        token1 = strtok(NULL, " ");             //Get the next element
+        if (token1 != NULL)    //printf("%s\n",token);
+            pathArray[i] = atof(token);       //Convert the value from string to float//printf("token = %s\n",token);
+        else
+            break;
+        token = strtok(NULL, " ");
+        if (token != NULL)      //printf("%s\n",token1);
+            pathArray[i+1] = atof(token1);       //Convert the value from string to float//printf("token1 = %s\n",token1);
+        else
+            break;
+        if (pathArray[i] == xCoor && pathArray[i+1] == yCoor) {
+            break;
+        }
+        printf("Array[%d] (X,Y):(%f,%f) \n", i, pathArray[i], pathArray[i+1]);
+        i=i+2;
+    }
+
+    //To reverse the path array
+    for (size_t j = 0; j < i/2; j=j+2) {
+        temopcoord = pathArray[j];
+        pathArray[j] = pathArray[i-2-j];
+        pathArray[i-2-j] = temopcoord;
+        temopcoord = pathArray[j+1];
+        pathArray[j+1] = pathArray[i-1-j];
+        pathArray[i-1-j] = temopcoord;
+    }
+    int r=0;
+    while (r<i) {
+        printf("(X,Y):(%f,%f) Array after reversing\n", pathArray[r], pathArray[r+1]);
+        r=r+2;
+    }
+    
+    char tempvar[9] = "";
+    strcpy(pathString, "");
+    for (int q = 0; q < i; q++) {
+        snprintf(tempvar, 9, "%f", pathArray[q]);
+        //printf("%s\n", tempvar);
+        strcat(pathString, tempvar);
+        strcat(pathString, " ");
+    }
+    strcat(pathString, "\n");
+    printf("%s", pathString);
 }
 
 void updateParams(double xd, double yd){
@@ -606,8 +670,10 @@ void actuationAuto(){
 
     if((prev_time>=time_flag+0.5) && (prev_time<time_flag+1))  //this for moving forward slowly after sensing for 
         forwardSlow(1);
+
     if(detect_flag==0 && prev_time>=time_flag+1)
     	normal_motion();
+
     else if(detect_flag==1 && prev_time>=time_flag+1){
         //ESP_LOGI(TAG, "after normal_motion");
         if(obstacle_flag[1]==1 && obstacle_flag[3]==0){
