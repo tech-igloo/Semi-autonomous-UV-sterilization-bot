@@ -423,12 +423,6 @@ httpd_uri_t uri_docking = {
     .user_ctx = NULL
 };
 
-httpd_uri_t uri_estop = {
-    .uri = "/estop",
-    .method = HTTP_GET,
-    .handler = handle_estop,
-    .user_ctx = NULL
-};
 /*In all of the callback functions below, the HTML Code for displaying
   the webpage is passed using the 'resp' string variable*/
 
@@ -772,7 +766,6 @@ esp_err_t handle_auto(httpd_req_t *req)
     flag = 4;
     lin_speed = DEFAULT_LIN_SPEED;
     ang_speed = DEFAULT_ANG_SPEED;
-    //auto_flag = 1; //activates only when execute is pressed
     char* resp = get_auto();
     httpd_resp_send(req, resp, strlen(resp));
     free(resp);
@@ -798,7 +791,7 @@ esp_err_t handle_auto_pause(httpd_req_t *req)
     return ESP_OK;
 }
 
-/*Callback function whenever "/pauseauto" is accessed*/
+/*Callback function whenever "/stopauto" is accessed*/
 esp_err_t handle_auto_stop(httpd_req_t *req)
 {
     auto_stop_flag = 1;
@@ -818,14 +811,6 @@ esp_err_t handle_forward(httpd_req_t *req)
 {
     char det = determine(flag);     //determine the direction it was going earlier
     
-    /* Previously implemented to test without encoders
-    // curr_mili = esp_timer_get_time();
-    // time_duration = (curr_mili - prev_mili)/1000;;      //the time for which it was going in the previous direction(in ms)
-    // ESP_LOGI(TAG,"%c%f",det,time_duration);
-    // prev_mili = esp_timer_get_time();
-    */
-
-    /*Code when interrupts are implemented*/ 
     if(flag == 0 || flag == 3){                      //for forward and backward
         time_duration = (abs(leftRot)*ENCODERresolution + abs(leftTicks))*wheeldist_perTick;  //Could have checked right instead as well
     }
@@ -834,7 +819,7 @@ esp_err_t handle_forward(httpd_req_t *req)
         time_duration = (time_duration*2)/wheelbase;  //angle= arc/radius gives angle in radians
         time_duration = fmod(time_duration, 2*M_PI);      //if more than 2pi then take the remainder
     }
-    ESP_LOGI(TAG,"%c%f",det,time_duration);
+    ESP_LOGI(TAG,"%c%f",det,time_duration);  //still in radians
     
     init_pid();                    //reset the PID variables
     flag = 0;                       //denotes that is now going in forward direction
@@ -877,7 +862,7 @@ esp_err_t handle_left(httpd_req_t *req)
         time_duration = (time_duration*2)/wheelbase;  //angle= arc/radius gives angle in radians
         time_duration = fmod(time_duration, 2*M_PI);
     }
-    ESP_LOGI(TAG,"%c%f",det,time_duration);
+    ESP_LOGI(TAG,"%c%f",det,time_duration);  //still in radians
 
     init_pid();
     flag = 1;                       //denotes that is now going in left direction
@@ -920,7 +905,7 @@ esp_err_t handle_right(httpd_req_t *req)
         time_duration = (time_duration*2)/wheelbase;  //angle= arc/radius gives angle in radians
         time_duration = fmod(time_duration, 2*M_PI);
     }
-    ESP_LOGI(TAG,"%c%f",det,time_duration);
+    ESP_LOGI(TAG,"%c%f",det,time_duration);  //still in radians
 
     init_pid();
     flag = 2;               //Now going in right direction, everything else is same as previous
@@ -962,7 +947,7 @@ esp_err_t handle_back(httpd_req_t *req)
         time_duration = (time_duration*2)/wheelbase;  //angle= arc/radius gives angle in radians
         time_duration = fmod(time_duration, 2*M_PI);
     }
-    ESP_LOGI(TAG,"%c%f",det,time_duration);
+    ESP_LOGI(TAG,"%c%f",det,time_duration);  //still in radians
 
     init_pid();
     flag = 3;       //Now going in back direction, everything else same as forward and left and right
@@ -1758,8 +1743,8 @@ esp_err_t handle_docking(httpd_req_t *req)
         docking_flag = 0;
     }
 
-    char* resp = get_home(0);   //Get the HTML Code to display
-    httpd_resp_send(req, resp, strlen(resp));   //Display the HTML Code
+    char* resp = get_pathexec();
+    httpd_resp_send(req, resp, strlen(resp));
     free(resp);
 
     ESP_LOGI(TAG, "Now displaying /dock");
@@ -1769,19 +1754,6 @@ esp_err_t handle_docking(httpd_req_t *req)
 
 }
 
-esp_err_t handle_estop(httpd_req_t *req)
-{
-    emergencySTOP = 1;
-
-    char* resp = get_home(0);   //Get the HTML Code to display
-    httpd_resp_send(req, resp, strlen(resp));   //Display the HTML Code
-    free(resp);
-
-    ESP_LOGI(TAG, "Now displaying /estop");
-    ESP_LOGI(TAG, "Callback Function called: handle_estop()");
-    ESP_LOGI(TAG, "Webpage displayed using HTML Code returned by: get_home()");
-    return ESP_OK;
-}
 /*HTML Code for displaying the home page "/" */
 char* default_page()
 {
@@ -1811,11 +1783,7 @@ char* default_page()
     if (docking_flag)
     {
         strcat(ptr, "<p>Press to Dock the bot</p><a class=\"button button-on\" href=\"/dock\">Docking</a>\n");//On clicking go to "/dock"
-    }
-    if (docking_enable)
-    {
-        strcat(ptr, "<p>Press to STOP the bot</p><a class=\"button button-on\" href=\"/estop\">E-STOP</a>\n");//On clicking go to "/estop"
-    }  
+    } 
     strcat(ptr, "<p>Press to reset the ESP</p><a class=\"button button-on\" href=\"/reset\">FACTORY\nRESET</a>\n");//On clicking go to "/reset"
 
     strcat(ptr, "</body>\n");
@@ -1867,7 +1835,7 @@ char* get_sta()
     strcat(ptr, "<title>Choose Direction</title>\n");
     strcat(ptr, "<style>html { font-family: Helvetica; display: inline-block; margin: 0px auto; text-align: center;}\n");
     strcat(ptr, "body{margin-top: 50px;} h1 {color: #444444;margin: 50px auto 30px;} h3 {color: #444444;margin-bottom: 50px;}\n");
-    strcat(ptr, ".button {display: block;width: 100px;background-color: #3498db;border: none;color: white;padding: 13px 30px;text-decoration: none;font-size: 25px;margin: 0px auto 35px;cursor: pointer;border-radius: 4px;}\n");
+    strcat(ptr, ".button {display: block;width: 200px;background-color: #3498db;border: none;color: white;padding: 13px 30px;text-decoration: none;font-size: 25px;margin: 0px auto 35px;cursor: pointer;border-radius: 4px;}\n");
     strcat(ptr, ".button-on {background-color: #3498db;}\n");
     strcat(ptr, ".button-on:active {background-color: #2980b9;}\n");
     strcat(ptr, ".button-off {background-color: #34495e;}\n");
@@ -1980,7 +1948,7 @@ char* get_auto()
     strcat(ptr, "<title>Choose Direction</title>\n");
     strcat(ptr, "<style>html { font-family: Helvetica; display: inline-block; margin: 0px auto; text-align: center;}\n");
     strcat(ptr, "body{margin-top: 50px;} h1 {color: #444444;margin: 50px auto 30px;} h3 {color: #444444;margin-bottom: 50px;}\n");
-    strcat(ptr, ".button {display: block;width: 100px;background-color: #3498db;border: none;color: white;padding: 13px 30px;text-decoration: none;font-size: 25px;margin: 0px auto 35px;cursor: pointer;border-radius: 4px;}\n");
+    strcat(ptr, ".button {display: block;width: 200px;background-color: #3498db;border: none;color: white;padding: 13px 30px;text-decoration: none;font-size: 25px;margin: 0px auto 35px;cursor: pointer;border-radius: 4px;}\n");
     strcat(ptr, ".button-on {background-color: #3498db;}\n");
     strcat(ptr, ".button-on:active {background-color: #2980b9;}\n");
     strcat(ptr, ".button-off {background-color: #34495e;}\n");
@@ -2049,10 +2017,11 @@ char* get_path_specific(int local_flag)
         strcat(ptr, "<p>Press to execute this path</p><a class=\"button button-on\" href=\"/path");
         strcat(ptr, str); //Go to "/path1" or "/path2" and so on
         strcat(ptr, "\">Execute</a>\n");
+        strcat(ptr, "<p>Press to delete this path</p><a class=\"button button-on\" href=\"/delete_path");
+        strcat(ptr, str); //Go to "/delete_path1" or "/delete_path2" and so on
+        strcat(ptr, "\">Delete</a>\n");
     }
-    strcat(ptr, "<p>Press to delete this path</p><a class=\"button button-on\" href=\"/delete_path");
-    strcat(ptr, str); //Go to "/delete_path1" or "/delete_path2" and so on
-    strcat(ptr, "\">Delete</a>\n");
+
     strcat(ptr, "<p>Press to go back</p><a class=\"button button-on\" href=\"/auto\">BACK</a>\n");
     strcat(ptr, "</body>\n");
     strcat(ptr, "</html>\n");
@@ -2091,12 +2060,8 @@ char* get_home(int local_flag)
         strcat(ptr, "<h3>Saved Successfully</h3>\n");
     else if(local_flag == 4)
         strcat(ptr, "<h3>Added Successfully</h3>\n");
-    if(!docking_enable)
+    else
         strcat(ptr, "<p>Press to return to home</p><a class=\"button button-on\" href=\"/\">HOME</a>\n");
-    else{
-        strcat(ptr, "<h3>Docking is being executed</h3>\n");
-        strcat(ptr, "<p>Press to return to home once docking is done</p><a class=\"button button-on\" href=\"/dock\">HOME</a>\n");
-    }
     strcat(ptr, "</body>\n");
     strcat(ptr, "</html>\n");
     return ptr; 
@@ -2359,7 +2324,6 @@ httpd_handle_t start_webserver(void)
         httpd_register_uri_handler(server, &uri_sta_data5);
         httpd_register_uri_handler(server, &uri_path_name);
         httpd_register_uri_handler(server, &uri_docking);
-        httpd_register_uri_handler(server, &uri_estop);
     }
     ESP_LOGI(TAG, "On core %d", xPortGetCoreID());
     return server;

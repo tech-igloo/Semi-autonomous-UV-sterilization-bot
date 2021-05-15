@@ -21,7 +21,6 @@ int auto_stop_flag = 0;
 int auto_pause_flag = 0;
 int docking_flag = 0;
 int docking_enable = 0;
-int emergencySTOP = 0;
 static TaskHandle_t Task1;                      //Task handle to keep track of created task running on Core 1
 char pathn[5][32] = {0};
 
@@ -436,42 +435,53 @@ esp_err_t update_paths()
 
 esp_err_t update_pathname()
 {
-    char str[LINE_LEN];
+    char str[LINE_LEN], temp[500] = "";
+    int linectr = 0, count_flag = 1;
     FILE* f_r = fopen("/spiffs/paths.txt", "r");
     if(f_r == NULL){
         printf("Error opening file paths.txt\n");
         return ESP_FAIL;
     }
     fgets(str, LINE_LEN, f_r);   //to ignore the first line
-
-    for (int i = 0; i < total_paths; i++)
-    {   
+    //ESP_LOGI(TAG, "total_paths: %d", total_paths);  
+    while (!feof(f_r)){
         strcpy(str, "\0");					//initialize to null string
         fgets(str, LINE_LEN, f_r);
-        
-        char *token, *token1;
-        token = strtok(str, " ");
-        while( token != NULL ) {
-            token1 = strtok(NULL, " ");             //Get the next element
-            if (token1 != NULL)
-            {
-                //ESP_LOGI(TAG, "token1: %s", token1);
-            }
-            else{
-                strcpy(pathn[i], token);
-                break;
-            }
-            token = strtok(NULL, " ");
-            if (token != NULL)
-            {
-                //ESP_LOGI(TAG, "token1: %s", token1);
-            }
-            else{
-                strcpy(pathn[i], token1);
-                break;
-            }  
-        } 
-        //ESP_LOGI(TAG, "path name array %s", pathn[i]);
+        strcat(temp, str);
+        if (count_flag){
+            linectr++;
+            count_flag = 0;
+        }  
+                    
+        if (strchr(str, '\n') && strlen(temp)>3){      //We only increment the linectr when we have \n, because of a single path having multiple lines
+            //ESP_LOGI(TAG, "temp: %s", temp);       
+            char *token, *token1;
+            token = strtok(temp, " ");
+            while(token!=NULL){
+                token1 = strtok(NULL, " ");             //Get the next element
+                if (token1 != NULL)
+                {
+                    //ESP_LOGI(TAG, "token1: %s", token1);  //Printing the next element
+                }
+                else{
+                    strcpy(pathn[linectr-1], token);
+                    break;
+                }
+                token = strtok(NULL, " ");
+                if (token != NULL)
+                {
+                    //ESP_LOGI(TAG, "token: %s", token);  //Printing the next element
+                }
+                else{
+                    strcpy(pathn[linectr-1], token1);
+                    break;
+                }  
+            } 
+            //ESP_LOGI(TAG, "path[%d] name %s",linectr-1,pathn[linectr-1]);
+            //reseting for next line
+            count_flag=1;
+            strcpy(temp, "");
+        }
     }
     fclose(f_r);
     return ESP_OK; 
@@ -654,11 +664,11 @@ void Task1code( void * pvParameters ){
         //For docking mode
         else if(docking_enable){
             ESP_ERROR_CHECK(get_path(lastAutoPath));
-            if(!emergencySTOP)
-                ESP_LOGI(TAG, "Docking executed successfully");
+            if(!auto_stop_flag)
+                ESP_LOGI(TAG, "Path executed successfully");
             else{
-                ESP_LOGI(TAG, "Docking stopped");
-                emergencySTOP = 0;
+                ESP_LOGI(TAG, "Path execution stopped");
+                auto_stop_flag = 0;
             }
             docking_enable = 0;
         }
@@ -695,6 +705,5 @@ void app_main(void)
     ESP_ERROR_CHECK(mdns_instance_name_set("web_server"));
     /*ESP_ERROR_CHECK(esp_event_handler_register(IP_EVENT, IP_EVENT_STA_GOT_IP, &connect_handler, &server));
     ESP_ERROR_CHECK(esp_event_handler_register(WIFI_EVENT, WIFI_EVENT_STA_DISCONNECTED, &disconnect_handler, &server));*/
-    //server = start_webserver();
 }
 

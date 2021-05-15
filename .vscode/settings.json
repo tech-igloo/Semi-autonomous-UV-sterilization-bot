@@ -19,7 +19,12 @@
         "server.h": "c",
         "algo.h": "c",
         "*.ipp": "c",
-        "functional": "c"
+        "functional": "c",
+        "complex": "c",
+        "esp_event.h": "c",
+        "nvs_flash.h": "c",
+        "task.h": "c",
+        "esp_http_server.h": "c"
     },
     "idf.flashType": "UART",
     "cmake.configureOnOpen": false

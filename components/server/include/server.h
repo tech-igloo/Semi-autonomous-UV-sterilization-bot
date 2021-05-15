@@ -66,7 +66,7 @@ char pass[WIFI_NUM][PASS_LEN];           //Store all the network passwords that 
 extern char pathn[5][32];                       //path name
 extern int docking_flag;                           //To show that docking is available
 extern int docking_enable;                           //For execution of docking process
-extern int emergencySTOP;                           //To stop the docking mode
+
 struct httpd_uri_t {                     //structure intialization for all the structure pointer
     const char       *uri;               //linking web addresses and corresponding call back functions
     httpd_method_t    method; 
@@ -134,7 +134,6 @@ esp_err_t handle_data_3(httpd_req_t *req);
 esp_err_t handle_data_4(httpd_req_t *req);
 esp_err_t handle_data_5(httpd_req_t *req);
 esp_err_t handle_docking(httpd_req_t *req);
-esp_err_t handle_estop(httpd_req_t *req);
 
 char* default_page();
 char* choose_page();
