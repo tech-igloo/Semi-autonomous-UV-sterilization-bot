@@ -1,0 +1,25 @@
+{
+    "configurations": [
+        {
+            "name": "Linux",
+            "includePath": [
+                "/home/shic/arduino-1.8.13-linux64/arduino-1.8.13/tools/**",
+                "/home/shic/Arduino/libraries/**",
+                "/home/shic/arduino-1.8.13-linux64/arduino-1.8.13/libraries/**",
+                "/home/shic/arduino-1.8.13-linux64/arduino-1.8.13/hardware/tools/**",
+                "/home/shic/arduino-1.8.13-linux64/arduino-1.8.13/hardware/arduino/avr/**"
+            ],
+            "forcedInclude": [
+                "/home/shic/arduino-1.8.13-linux64/arduino-1.8.13/hardware/arduino/avr/cores/arduino/Arduino.h"
+            ],
+            "defines": [
+                "USBCON"
+            ],
+            "intelliSenseMode": "linux-gcc-x64",
+            "compilerPath": "/usr/bin/gcc",
+            "cStandard": "gnu17",
+            "cppStandard": "gnu++14"
+        }
+    ],
+    "version": 4
+}
