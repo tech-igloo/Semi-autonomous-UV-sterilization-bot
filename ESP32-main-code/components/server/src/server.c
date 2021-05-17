@@ -1080,7 +1080,6 @@ esp_err_t handle_save(httpd_req_t *req)
 
 esp_err_t handle_pathname(httpd_req_t *req)
 {   
-    ESP_LOGI(TAG, "Now displaying /pathname");
     int len = req->content_len;     //Get the length of the header
     int ret, remaining = req->content_len;      //Get how much length is left to be read
     while (remaining > 0) {									//this method of taking the data was taken from online
@@ -2060,8 +2059,8 @@ char* get_home(int local_flag)
         strcat(ptr, "<h3>Saved Successfully</h3>\n");
     else if(local_flag == 4)
         strcat(ptr, "<h3>Added Successfully</h3>\n");
-    else
-        strcat(ptr, "<p>Press to return to home</p><a class=\"button button-on\" href=\"/\">HOME</a>\n");
+    
+    strcat(ptr, "<p>Press to return to home</p><a class=\"button button-on\" href=\"/\">HOME</a>\n");
     strcat(ptr, "</body>\n");
     strcat(ptr, "</html>\n");
     return ptr; 
