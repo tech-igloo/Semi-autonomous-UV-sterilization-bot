@@ -1,108 +1,55 @@
 #include "server.h"
 #include "algo.h"
 
-float batteryPercent = 0;
-
+/*Defining the variables declared in alog.h*/
 int Lpwm = 0; 
-int Rpwm = 0;     //Always remember you can't define the variable in .h file     
-
+int Rpwm = 0;     
 int leftRot = 0;
 int leftTicks = 0;
 int rightRot = 0;
 int rightTicks = 0;
-
 double left_vel = 0;
 double right_vel = 0;
 double prev_disL = 0;
 double prev_disR = 0;
-//double prev_rotl = 0, prev_rotr = 0;
 double lin_speed = DEFAULT_LIN_SPEED;
 double ang_speed = DEFAULT_ANG_SPEED;
 int64_t prev_tim = 0;
-
 double current_errorL = 0;
 double accumulated_errorL = 0;
 double prev_errorL = 0;
 double current_errorR = 0;
 double accumulated_errorR = 0;
 double prev_errorR = 0;
-
-double Kp = 1;                   //common gains for both the PID blocks for now
-double Kd = 1/sampleTimeInSec;
-double Ki = 1*sampleTimeInSec;
-
-double Kpl = 1;                   //common gains for both the PID blocks for now
+//Separate PID constants for Left and Right PID control loops
+double Kpl = 1;                  
 double Kdl = 0.02/sampleTimeInSec;
 double Kil = 0.001*sampleTimeInSec;
-
-double Kpr = 1;                   //common gains for both the PID blocks for now
+double Kpr = 1;                   
 double Kdr = 0.01/sampleTimeInSec;
 double Kir = 0.001*sampleTimeInSec;
-
 double xCoor = 0;
 double yCoor = 0;
 int lastAutoPath = 0;
+xQueueHandle gpio_evt_queue = NULL;           //Queue handle to keep track of the interrupt queue 
 
-static double angle_required = 0;                //angle that the bot needs to rotate to align itself with its destination point
-static double dist_required = 0;                 //distance from stop point that the bot needs to travel to reach the destination point
-static int rotating_flag = 1;                   //flag that signifies whether the bot should rotate or move along a straight line
+/*Static variables used only in this file to perform autonomous mode calculations and execution*/
+static double angle_required = 0;             //angle that the bot needs to rotate to align itself with its destination point
+static double dist_required = 0;              //distance from stop point that the bot needs to travel to reach the destination point
+static double stop_point[2] = {0};            //This is the actual point that is attained as compared to desired(prev_point)
+static double prev_point[2] = {0};            //The goal point that robot is trying to reach in that iteration
+static double current_point[2] = {0};         //Instantaneous co-ordinates of the bot
+static double dist_traversed = 0;             //distance travlled by bot along straight line(+ve for forward and -ve for negative)
+static double angle_rotated = 0;              //absolute angle rotated by bot(+ve for clockwise and -ve for anticlockwise) wrt to +ve x axis
+static int rotating_flag = 1;                 //flag that signifies whether the bot should rotate or move along a straight line
+static int doneFlag = 0;                      //To denote when straight or roatation has been performed
+static double prev_time = 0;                  //stores the previous time step, gets updated to current time after sensing
+static double time_flag = 0;                  //To represent the last time since the obstacle has been detected
+static int detect_flag = 0;                   //To indicate when desired combination of ULTRASONIC sensor has detected a obstacle
+static int run = 0;                           //To move onto the next point from list once the previous has been reached
+static int obstacle_flag[5] = {0};            //To record ultrasonic value
 
-static double stop_point[2] = {0};                 //the position of the bot from which distance travlled is being calculated
-static double prev_point[2] = {0};               //the next point that the bot needs to travel to
-static double current_point[2] = {0};            //current co-ordinates of the bot*/
-
-static double dist_traversed = 0;                //distance travlled by bot along straight line(+ve for forward and -ve for negative)
-static double angle_rotated = 0;                 //angle rotated by bot(+ve for clockwise and -ve for anticlockwise)
-static int doneFlag = 0;
-
-static double prev_time = 0;                     //stores the previous time step, gets updated to current time after sysCall_sensing
-static double time_flag = 0;
-
-static int detect_flag = 0;
-static int run = 0;
-static int obstacle_flag[5] = {0};              //To record ultrasonic value
-
-xQueueHandle gpio_evt_queue = NULL;
-
-void InterruptEncoder(void* arg)
-{
-    uint32_t io_num;
-    ESP_LOGI(TAG, "On core %d", xPortGetCoreID());
-    long int last_time = 0;
-    for(;;) {
-        if(xQueueReceive(gpio_evt_queue, &io_num, portMAX_DELAY)) {
-            //printf("GPIO[%d] intr, val: %d\n", io_num, gpio_get_level(io_num)); 
-            if (io_num == LEFT_ENCODERA){
-                leftTicks++;
-                if (leftTicks >= ENCODERresolution){
-                    leftRot++;                         
-                    leftTicks=0;
-                }
-            }
-            else if (io_num == RIGHT_ENCODERA){
-                rightTicks++;
-                if (rightTicks >= ENCODERresolution){
-                    rightRot++;
-                    rightTicks=0;
-                }
-            }
-        }
-        if ((esp_timer_get_time()-last_time) > ADC_SAMPLING_FREQ ){
-            int raw = 0;
-            for (int ch = 0; ch < ADC_AVERAGING_FREQ; ch++){
-                raw += adc1_get_raw(ADC1_CHANNEL_6);
-            }
-            raw /= 10; 
-            batteryPercent = raw/40.95;  //in percentage, display on webpage
-            //printf("Battery Percent: %f\n", batteryPercent);
-            last_time = esp_timer_get_time();
-        }
-        else
-            continue;   
-    }
-}
-
-/*To initialize the motor direction, encoder, and sensor I/O pins*/ 
+/*To initialize the motor direction, encoder, sensor I/O pins, and ADC pins*/ 
 void init_gpio()
 {
     ENCODER.intr_type = GPIO_INTR_ANYEDGE;      //Change according to the resolution, anyedge for quadrature when using both the pins
@@ -128,18 +75,18 @@ void init_gpio()
     gpio_set_direction(LEFT_MOTOR_DIRECTION_2, GPIO_MODE_OUTPUT);
     gpio_set_direction(RIGHT_MOTOR_DIRECTION_2, GPIO_MODE_OUTPUT);
 
-    // ULTRASONIC.intr_type = 0;      //Change according to the resolution, anyedge for quadrature when using both the pins
-    // ULTRASONIC.mode = GPIO_MODE_INPUT;
-    // ULTRASONIC.pull_down_en = 0;
-    // ULTRASONIC.pull_up_en = 0;
-    // ULTRASONIC.pin_bit_mask = GPIO_ULTRASONIC_PIN_SEL; /*!< GPIO pin: set with bit mask, each bit maps to a GPIO */
-    // gpio_config(&ULTRASONIC);
+    ULTRASONIC.intr_type = 0;      //Change according to the resolution, anyedge for quadrature when using both the pins
+    ULTRASONIC.mode = GPIO_MODE_INPUT;
+    ULTRASONIC.pull_down_en = 0;
+    ULTRASONIC.pull_up_en = 0;
+    ULTRASONIC.pin_bit_mask = GPIO_ULTRASONIC_PIN_SEL; /*!< GPIO pin: set with bit mask, each bit maps to a GPIO */
+    gpio_config(&ULTRASONIC);
 
     adc1_config_width(ADC_WIDTH_BIT_12);   // 0-4095 not linear range, testing and filtering req
     adc1_config_channel_atten(ADC_CHANNEL_6, ADC_ATTEN_DB_11); //ADC1-CH6 corresponds to pin 34
 }
 
-/*Used for setting up PWM Channel (Ref: Official Github Repo)*/
+/*Used for setting up Motor PWM Channel (Ref: Official Github Repo)*/
 void init_pwm()
 {
     ledc_timer_config_t led_timer = {
@@ -168,10 +115,38 @@ void init_pwm()
     ledc_channel_config(&motorR);
 }
 
+/*To integrate the Queue in the ISR handler of Encoder interrupts*/ 
 void IRAM_ATTR gpio_encoder_isr_handler(void* arg)
 {
     uint32_t gpio_num = (uint32_t) arg;
     xQueueSendFromISR(gpio_evt_queue, &gpio_num, NULL);
+}
+
+/*A Task created to continuously check the Encoder interrupt Queue and process the data if available,
+this function updates the number of rotation and ticks of left and right motor*/ 
+void InterruptEncoder(void* arg)
+{
+    uint32_t io_num;
+    ESP_LOGI(TAG, "On core %d", xPortGetCoreID());
+    for(;;) {
+        if(xQueueReceive(gpio_evt_queue, &io_num, portMAX_DELAY)) {
+            //printf("GPIO[%d] intr, val: %d\n", io_num, gpio_get_level(io_num)); 
+            if (io_num == LEFT_ENCODERA){
+                leftTicks++;
+                if (leftTicks >= ENCODERresolution){
+                    leftRot++;                         
+                    leftTicks=0;
+                }
+            }
+            else if (io_num == RIGHT_ENCODERA){
+                rightTicks++;
+                if (rightTicks >= ENCODERresolution){
+                    rightRot++;
+                    rightTicks=0;
+                }
+            }
+        }
+    }
 }
 
 /*The following are the actuation functions for movement of the bot with velocity feedback control*/
@@ -187,20 +162,14 @@ void move_forward()
         Lpwm = pid_velLeft(left_vel, lin_speed);     //values after being mapped to PWM range
         Rpwm = pid_velRight(right_vel, lin_speed);
         //ESP_LOGI(TAG, "Left wheel velocity:%f, right wheel velocity:%f", left_vel, right_vel);
-        // double left_rot =  ((leftRot*ENCODERresolution + leftTicks) - prev_rotl)/sampleTimeInSec;  // 9Current_dis-prev_dis)/time VELCOTIY IN m/sec
-        // double right_rot = ((rightRot*ENCODERresolution + rightTicks)- prev_rotr)/sampleTimeInSec;
-        // prev_rotl = left_rot*sampleTimeInSec + prev_rotl;
-        // prev_rotr = right_rot*sampleTimeInSec + prev_rotr;
-        // ESP_LOGI(TAG, "Left wheel velocity:%f, right wheel velocity:%f", left_rot, right_rot);
-
         prev_tim = esp_timer_get_time();
     }
 
     gpio_set_level(LEFT_MOTOR_DIRECTION_1, 1);    //BOTH IN SAME DIRECTION
-    gpio_set_level(LEFT_MOTOR_DIRECTION_2, 0);    //BOTH IN SAME DIRECTION
+    gpio_set_level(LEFT_MOTOR_DIRECTION_2, 0);    
     gpio_set_level(RIGHT_MOTOR_DIRECTION_1, 1);
     gpio_set_level(RIGHT_MOTOR_DIRECTION_2, 0);
-    ledc_set_duty(motorL.speed_mode, motorL.channel, Lpwm);   //Update the PWM value to be used by this lED Channel.
+    ledc_set_duty(motorL.speed_mode, motorL.channel, Lpwm);   //Update the PWM value to be used by this Channel.
     ledc_update_duty(motorL.speed_mode, motorL.channel);      //Use the Updated PWM values
     ledc_set_duty(motorR.speed_mode, motorR.channel, Rpwm);
     ledc_update_duty(motorR.speed_mode, motorR.channel);
@@ -217,8 +186,8 @@ void move_left()
         prev_disR = right_vel*sampleTimeInSec + prev_disR;
         right_vel = right_vel*2/wheelbase;   //angular velocity of the bot due to right motor
 
-        Lpwm = pid_velLeft(left_vel, ang_speed/2);          // Divide by 2 because each motor is providing half the desired angular velocity to the bot
-        Rpwm = pid_velRight(right_vel, ang_speed/2);        // for point rotation
+        Lpwm = pid_velLeft(left_vel, ang_speed/2);          // Divide by 2 because each motor is providing half the desired 
+        Rpwm = pid_velRight(right_vel, ang_speed/2);        // angular velocity to the bot for point rotation
         //ESP_LOGI(TAG, "Left wheel velocity:%f, right wheel velocity:%f", left_vel, right_vel);
         prev_tim = esp_timer_get_time();
     }
@@ -263,7 +232,7 @@ void move_right()
 void move_back()
 {   
     if((esp_timer_get_time() - prev_tim) >= sampleTime){
-        left_vel = ((leftRot*ENCODERresolution + leftTicks)*wheeldist_perTick - prev_disL)/sampleTimeInSec;  // 9Current_dis-prev_dis)/time VELCOTIY IN m/sec
+        left_vel = ((leftRot*ENCODERresolution + leftTicks)*wheeldist_perTick - prev_disL)/sampleTimeInSec;  // (Current_dis-prev_dis)/time=VELCOTIY IN m/sec
         right_vel = ((rightRot*ENCODERresolution + rightTicks)*wheeldist_perTick - prev_disR)/sampleTimeInSec;
         prev_disL = left_vel*sampleTimeInSec + prev_disL;
         prev_disR = right_vel*sampleTimeInSec + prev_disR;
@@ -273,7 +242,7 @@ void move_back()
         prev_tim = esp_timer_get_time();
     }
 
-    gpio_set_level(LEFT_MOTOR_DIRECTION_1, 0);    //IN OPP DIRECTION
+    gpio_set_level(LEFT_MOTOR_DIRECTION_1, 0);    
     gpio_set_level(LEFT_MOTOR_DIRECTION_2, 1);    //BOTH IN SAME DIRECTION
     gpio_set_level(RIGHT_MOTOR_DIRECTION_1, 0);
     gpio_set_level(RIGHT_MOTOR_DIRECTION_2, 1);
@@ -295,9 +264,10 @@ void move_stop()
     ledc_update_duty(motorR.speed_mode, motorR.channel);
 }
 
-/*To reset the PID error variable*/ 
-void init_pid(){
-    current_errorL = 0;
+/*To reset the PID error variable as well as some automode variables*/ 
+void init_pid()
+{
+    current_errorL = 0; //PID variables
     accumulated_errorL = 0;
     prev_errorL = 0;
     prev_disL = 0;
@@ -305,21 +275,20 @@ void init_pid(){
     accumulated_errorR = 0;
     prev_errorR = 0;
     prev_disR = 0;
-    
-    doneFlag = 0;
-
-    leftRot = 0;     //Advantage of incremental encoders
+    leftRot = 0;        //Encoder variables reset when moving onto next function or point
     leftTicks = 0;
     rightRot = 0;
     rightTicks = 0;
+    doneFlag = 0;       //To move onto the next point from the list
 }
 
-/*Simple PID funtions, can be upgraded while testing according to the performance. Like integral windup etc.*/
-int pid_velLeft(double actualvel, double desiredvel){
+/*PID control loop performing velocity feedback for left motor*/
+int pid_velLeft(double actualvel, double desiredvel)
+{
     current_errorL = desiredvel - actualvel;
     accumulated_errorL += current_errorL;
     double pid = Kpl*current_errorL + Kdl*(current_errorL - prev_errorL) + Kil*accumulated_errorL;
-    //Main part after this is finding the maximum value of PID(after capping) and mapping it to the PWM 
+    //The maximum and minimum value of the PID needs to be calculated everytime PID constants are changed
     if (pid>2.5)
          pid=2.5;
     else if (pid<0)
@@ -328,16 +297,18 @@ int pid_velLeft(double actualvel, double desiredvel){
     return mapval(pid, 0, 2.5, 2200, 4095);   //set maximum PWM as the top speed required
 }
 
-int pid_velRight(double actualvel, double desiredvel){
+/*PID control loop performing velocity feedback for left motor*/
+int pid_velRight(double actualvel, double desiredvel)
+{
     current_errorR = desiredvel - actualvel;
     accumulated_errorR += current_errorR;
     double pid = Kpr*current_errorR + Kdr*(current_errorR - prev_errorR) + Kir*accumulated_errorR;
+    //The maximum and minimum value of the PID needs to be calculated everytime PID constants are changed
     if (pid>2.5)
          pid=2.5;
     else if (pid<0)
          pid=0;
     prev_errorR = current_errorR;
-    //Main part after this is finding the maximum value of PID(after capping) and mapping it to the PWM 
     return mapval(pid, 0, 2.5, 2200, 4095);
 }
 
@@ -362,9 +333,10 @@ char determine(int local_flag)
     return c;
 }
 
-/*Algorithm for converting path to co-ordinate based format
-  Remove DEFAULT_LIN_SPEED and DEFAULT_ANG_SPEED if the stored format is in distance and not time*/
-esp_err_t convert_paths(int n){
+/*Algorithm for converting path to co-ordinate based format using basic trignometry.
+The recorded path in the form of F,L,R, and B is transfomed to x and y coordinates and overwriting them in the path.txt file.*/
+esp_err_t convert_paths(int n)
+{
     char str[LINE_LEN];
     char aux[500] = "", aux1[500] = "";
     int len = 0, linectr = 0, count_flag = 1;
@@ -394,7 +366,7 @@ esp_err_t convert_paths(int n){
             count_flag = 0;
         }              
         if (strchr(str, '\n')){      //We only increment the linectr when we have \n, because of a single path having multiple lines
-            if(linectr == n) //This before the reseting temp so that if deceted it should retain it
+            if(linectr == n)         
             {
                 strcpy(aux1,aux);
                 ESP_LOGI(TAG, "%s", aux1);
@@ -425,7 +397,7 @@ esp_err_t convert_paths(int n){
                 char* result = (char *)calloc((len*2*10+1+32),sizeof(char));  //+32 for the name
                 strcpy(result, "");
                 ESP_LOGI(TAG, "Length: %d", len*4*9+1+32);
-                //Result string storage
+                //Conversion and storage of path to coordinates in result variable
                 char *token, *token1;
                 token = strtok(aux1, "\t");
                 while(token!=NULL)
@@ -451,10 +423,10 @@ esp_err_t convert_paths(int n){
                             prev = current;
                         }
                         else if(ch == 'b'){
-                            current.x = prev.x - val*cos(prev.theta);  //don't convert as already in radians when using encoders
+                            current.x = prev.x - val*cos(prev.theta);  
                             current.y = prev.y - val*sin(prev.theta);
                             ESP_LOGI(TAG, "(%f, %f)", current.x, current.y);
-                            strcpy(temp, "");
+                            strcpy(temp, "");               //Each coordinate is separated by a single space
                             snprintf(temp, 9, "%f", current.x);
                             strcat(result, temp);
                             strcat(result, " ");
@@ -466,23 +438,22 @@ esp_err_t convert_paths(int n){
                             prev = current;
                         }
                         else if(ch == 'l'){
-                            //val is in radian only
                             prev.theta = prev.theta + val;
                         }
                         else if(ch == 'r'){
                             prev.theta = prev.theta - val;
-                    }
+                        }
                     }
                     else{
                         strcat(result, token);
-                        strcat(result, " ");
+                        strcat(result, " ");       //Last space for name
                         break;
                     }
                     token = strtok(NULL, "\t");
                     if (token != NULL){
                         ch = token1[0];
                         token1++;
-                        val = atof(token1);    //val is in meters 
+                        val = atof(token1);    //val is in meters and radians 
                         if(ch == 'f'){
                             current.x = prev.x + val*cos(prev.theta);
                             current.y = prev.y + val*sin(prev.theta);
@@ -499,7 +470,7 @@ esp_err_t convert_paths(int n){
                             prev = current;
                         }
                         else if(ch == 'b'){
-                            current.x = prev.x - val*cos(prev.theta);  //don't convert as already in radians when using encoders
+                            current.x = prev.x - val*cos(prev.theta);  
                             current.y = prev.y - val*sin(prev.theta);
                             ESP_LOGI(TAG, "(%f, %f)", current.x, current.y);
                             strcpy(temp, "");
@@ -513,8 +484,7 @@ esp_err_t convert_paths(int n){
                             current.theta = prev.theta;
                             prev = current;
                         }
-                        else if(ch == 'l'){
-                            //val is in radian 
+                        else if(ch == 'l'){ 
                             prev.theta = prev.theta + val;  //positive value for left, aangle measured from x axis
                         }
                         else if(ch == 'r'){
@@ -523,7 +493,7 @@ esp_err_t convert_paths(int n){
                     }
                     else{
                         strcat(result, token1);
-                        strcat(result, " ");
+                        strcat(result, " ");        //Last space for name
                         break;
                     }
                 }
@@ -544,8 +514,11 @@ esp_err_t convert_paths(int n){
     return ESP_OK;
 }
 
-/*Execute the local_flag th path*/ //auto mode, need to enable the interrupts and use the algorithm
-esp_err_t get_path(int local_flag){
+/*Execute the local_flag'th path. It incorporates the autonomous algorithm which is responsible for replicating the 
+recorded path as well docking execution. Some of the features are reading the coordinates from the file,
+calling sensing, actuation function, pause and stop of auto path. */
+esp_err_t get_path(int local_flag)
+{
     char str[LINE_LEN], temp[500] = ""; // Change this temp to calloc
     int linectr = 0, count_flag = 1;
     
@@ -611,18 +584,19 @@ esp_err_t get_path(int local_flag){
         {
             if (!auto_pause_flag)
             {
-                sensing();
+                //sensing();
                 actuationAuto();
+            }
+            else{
+                flag = -1;
+                move_stop();
             }
         }
         ESP_LOGI(TAG, "Current point(X,Y):(%f, %f))",current_point[0],current_point[1]);
         if(auto_stop_flag){  //When /STOPauto is pressed while the path is being executed
             init_pid();     //Not reseting
             break;
-        }
-        // token = strtok(NULL, " "); 
-        // if (!strcmp(token,"\n"))   //This took a long time to figure out
-        //     break;           
+        }          
     }
     lastAutoPath = auto_flag;
     auto_flag = 0;
@@ -633,23 +607,25 @@ esp_err_t get_path(int local_flag){
     return ESP_OK;
 }
 
-/*Execute the docking to home coordinate for the last path executed in auto mode */
-void docking_algo(char *pathString){
+/*Reverse the order of coordinates of the last executed path, till the latest x and y coordinates.
+This function is called inside get_path() which executes the new path returned by the docking_algo()*/
+void docking_algo(char *pathString)
+{
     char *token, *token1;
     float pathArray[100] = {0};
     float temopcoord = 0.0;
     int i=0;
-
+    //Getting the last path coordinates till the latest coordinates executed in the pathArray 
     token = strtok(pathString, " ");
     while(token != NULL) {
         token1 = strtok(NULL, " ");             //Get the next element
-        if (token1 != NULL)    //printf("%s\n",token);
-            pathArray[i] = atof(token);       //Convert the value from string to float//printf("token = %s\n",token);
+        if (token1 != NULL)   
+            pathArray[i] = atof(token);       //Convert the value from string to float
         else
             break;
         token = strtok(NULL, " ");
-        if (token != NULL)      //printf("%s\n",token1);
-            pathArray[i+1] = atof(token1);       //Convert the value from string to float//printf("token1 = %s\n",token1);
+        if (token != NULL)     
+            pathArray[i+1] = atof(token1);       //Convert the value from string to float
         else
             break;
         if (pathArray[i] == xCoor && pathArray[i+1] == yCoor) {
@@ -659,7 +635,7 @@ void docking_algo(char *pathString){
         i=i+2;
     }
 
-    //To reverse the path array
+    //To reverse the patharray for reaching home point
     for (size_t j = 0; j < i/2; j=j+2) {
         temopcoord = pathArray[j];
         pathArray[j] = pathArray[i-2-j];
@@ -673,20 +649,21 @@ void docking_algo(char *pathString){
         //printf("(X,Y):(%f,%f) Array after reversing\n", pathArray[r], pathArray[r+1]);
         r=r+2;
     }
-    
+    //Converting the array to a string
     char tempvar[9] = "";
     strcpy(pathString, "");
     for (int q = 0; q < i; q++) {
         snprintf(tempvar, 9, "%f", pathArray[q]);
-        //printf("%s\n", tempvar);
         strcat(pathString, tempvar);
         strcat(pathString, " ");
     }
     strcat(pathString, "\n");
-    //printf("%s", pathString);
 }
 
-void updateParams(double xd, double yd){
+/*This function is called every time when new coordinates are read from the list, Its job is to calculate 
+the distance and angle required from prev_point to xd and yd. */
+void updateParams(double xd, double yd)
+{
     dist_required = sqrt(pow(yd - prev_point[1],2)+pow(xd - prev_point[0],2));  //Distance in meters
     /*The angle calculated here is absolute from positive x-axis, range is from +180 to -180. Clockwise -ve and anti +ve*/
     if (xd-prev_point[0] >= 0){
@@ -708,6 +685,10 @@ void updateParams(double xd, double yd){
     run = 0;
 }
 
+/*Main funtion that responds to the environment whether a obstacle is present or not. 
+It also calculate the current_point which is essentially the instantaneous coordinate of the bot 
+being updated with the help of encoders. In case of an obstacle it decided with the various cases which 
+way to move the bot to avoid collision.*/
 void actuationAuto(){
     if (flag == 0)
         dist_traversed = (leftRot*ENCODERresolution + leftTicks)*wheeldist_perTick; //In meters //To know if the target has been reached
@@ -723,52 +704,55 @@ void actuationAuto(){
 
 
     if(esp_timer_get_time()-prev_time> 500000 ){
-        ESP_LOGI(TAG, "Current point(X,Y):(%f, %f), dist_traversed,angle_rotated:(%f, %f)",current_point[0],current_point[1],dist_traversed,angle_rotated*57.29);
+        ESP_LOGI(TAG, "Current point(X,Y):(%f, %f), dist_traversed,angle_rotated:(%f, %f), flag: %d",current_point[0],current_point[1],dist_traversed,angle_rotated*57.29,flag);
         prev_time = esp_timer_get_time();
     }
-    // if((prev_time>=time_flag+0.5) && (prev_time<time_flag+1))  //this for moving forward slowly after sensing for 
+    // if((prev_time>=time_flag+0.5) && (prev_time<time_flag+1))  //this for moving forward slowly after sensing 
     //     forwardSlow(1);
 
     // if(detect_flag==0 && prev_time>=time_flag+1)
     normal_motion();
 
-    // else if(detect_flag==1 && prev_time>=time_flag+1){
-    //     //ESP_LOGI(TAG, "after normal_motion");
-    //     if(obstacle_flag[1]==1 && obstacle_flag[3]==0){
-	//     	time_flag = prev_time;
-	//     	rotateSlow(-1);
-	//     	dist_traversed = 0;
-	//     	update_stopPoint();
-    // 	}
-    //     else if(obstacle_flag[3]==1 && obstacle_flag[1]==0){
-    // 		time_flag = prev_time;
-    // 		rotateSlow(1);
-    // 		dist_traversed = 0;
-	//     	update_stopPoint();
-    // 	}
-    //     else if(obstacle_flag[1]==1 && obstacle_flag[3]==1){
-    // 		time_flag = prev_time;
-    // 		rotateSlow(1);
-    // 		dist_traversed = 0;
-	//     	update_stopPoint();
-    // 	}
-    //     else if(obstacle_flag[1]==0 && obstacle_flag[3]==0 && obstacle_flag[2]==1){
-    // 		time_flag = prev_time;
-    // 		rotateSlow(1);
-    //         dist_traversed = 0;
-    //         update_stopPoint();
-    //     }
-    //     else if(obstacle_flag[0]==1 || obstacle_flag[4]==1){
-    //         time_flag = prev_time;
-    //         forwardSlow(5);
-    // 	}
-    //     else if(obstacle_flag[0]==0 && obstacle_flag[4]==0){
-    // 		recalculate();
-    // 		detect_flag = 0;
-    // 	}
-    // }
+   // else
+    if(detect_flag==1 && prev_time>=time_flag+1){
+        //ESP_LOGI(TAG, "after normal_motion");
+        if(obstacle_flag[1]==1 && obstacle_flag[3]==0){
+	    	time_flag = prev_time;
+	    	rotateSlow(-1);
+	    	dist_traversed = 0;
+	    	update_stopPoint();
+    	}
+        else if(obstacle_flag[3]==1 && obstacle_flag[1]==0){
+    		time_flag = prev_time;
+    		rotateSlow(1);
+    		dist_traversed = 0;
+	    	update_stopPoint();
+    	}
+        else if(obstacle_flag[1]==1 && obstacle_flag[3]==1){
+    		time_flag = prev_time;
+    		rotateSlow(1);
+    		dist_traversed = 0;
+	    	update_stopPoint();
+    	}
+        else if(obstacle_flag[1]==0 && obstacle_flag[3]==0 && obstacle_flag[2]==1){
+    		time_flag = prev_time;
+    		rotateSlow(1);
+            dist_traversed = 0;
+            update_stopPoint();
+        }
+        else if(obstacle_flag[0]==1 || obstacle_flag[4]==1){
+            time_flag = prev_time;
+            forwardSlow(5);
+    	}
+        else if(obstacle_flag[0]==0 && obstacle_flag[4]==0){
+    		recalculate();
+    		detect_flag = 0;
+    	}
+    }
 }
 
+/*To execute the default path when no obstacles are present, Its job is to first rotate to the desired orientation
+the to move forward to the required coordinates. Once the goal is achieved it updates the run flag that fectches the next point*/
 void normal_motion(){
     lin_speed = DEFAULT_LIN_SPEED;
     ang_speed = DEFAULT_ANG_SPEED;
@@ -790,7 +774,7 @@ void normal_motion(){
             init_pid();
             flag = -1;
             move_stop();
-            run=1;
+            run=1;          //Move to next point
             update_stopPoint();
             rotating_flag = 1;
         }
@@ -799,8 +783,11 @@ void normal_motion(){
     }
 }
 
+/*To actuate and record the angular motion of the bot, till angle_required is achieved*/
 void rotate(){
-    if((angle_required - angle_rotated) > 0){
+    if(fabs(angle_required - angle_rotated) < 0.05)  //set some threshold after which it can move 
+        doneFlag = 1;
+    else if((angle_required - angle_rotated) > 0){
         flag = 1;    //If diff is positive, then left(+ve for anticlockwise)
         move_left();
     }
@@ -808,10 +795,9 @@ void rotate(){
         flag = 2; 
         move_right();
     }
-    if((angle_required - angle_rotated) < 0.05 && (angle_required - angle_rotated) > -0.05)  //set some threshold after which it can move 
-        doneFlag = 1;
 }
 
+/*To actuate and record the forward motion of the bot, till dist_required is achieved*/
 void forward(){
     flag = 0; 
     move_forward();
@@ -819,11 +805,13 @@ void forward(){
         doneFlag = 1;
 }
 
+/*Updates the stop point when the angle required and distance required have been achieved*/
 void update_stopPoint(){
     stop_point[0] = current_point[0];
     stop_point[1] = current_point[1];
 }
 
+/*To recalculate the angle and distance required when an obstacle is detected and path has to be altered*/
 void recalculate(){
     dist_required = sqrt(pow(prev_point[1]-current_point[1], 2) + pow(prev_point[0]-current_point[0], 2));    
     if(prev_point[0]-current_point[0] >= 0){
@@ -842,25 +830,28 @@ void recalculate(){
     rotating_flag = 1;
 }
 
+/*Checks the Ultrasonic sensors and updates the obstacle_flag array and detect flag. */
 void sensing(){
 
-    //prev_time = esp_timer_get_time()/1000000;    //Getting current time in microseconds and storing in seconds
+    prev_time = esp_timer_get_time()/1000000;    //Getting current time in microseconds and storing in seconds
 
-   	// obstacle_flag[0] = !gpio_get_level(ULTRA1);
-   	// obstacle_flag[1] = !gpio_get_level(ULTRA2);
-   	// obstacle_flag[2] = !gpio_get_level(ULTRA3);
-   	// obstacle_flag[3] = !gpio_get_level(ULTRA4);
-   	// obstacle_flag[4] = !gpio_get_level(ULTRA5);
+   	obstacle_flag[0] = !gpio_get_level(ULTRA1);
+   	obstacle_flag[1] = !gpio_get_level(ULTRA2);
+   	obstacle_flag[2] = !gpio_get_level(ULTRA3);
+   	obstacle_flag[3] = !gpio_get_level(ULTRA4);
+   	obstacle_flag[4] = !gpio_get_level(ULTRA5);
     
-    // detect_flag = obstacle_flag[1] | obstacle_flag[2] | obstacle_flag[3];  //comment this when testing only normal motion
+    detect_flag = obstacle_flag[1] | obstacle_flag[2] | obstacle_flag[3];  //comment this when testing only normal motion
 }
 
+/*To decrease the forward speed when an obstacle is close*/
 void forwardSlow(int num){
     flag = 0;
     move_forward();
     lin_speed = MIN_LINEAR_SPEED*num;
 }
 
+/*To decrease the angular speed when an obstacle is close*/
 void rotateSlow(int num){
     ang_speed = MIN_ANGULAR_SPEED*abs(num);
     if(num > 0){

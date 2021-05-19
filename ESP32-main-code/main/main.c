@@ -1,26 +1,24 @@
 #include "server.h"
 #include "algo.h"
 
-// /*The variables that keep track of various things while the code is running*/
-static EventGroupHandle_t s_wifi_event_group;   //Used for Wifi connections during SAP and STA mode
-const char *TAG = "wifi station";        //Name used for ESP_LOGI statements. Feel free to set it to whatever you want
-int flag = -1;                           //Used for determining in which direction it is travelling
-static int s_retry_num = 0;                     //Number of times the esp has tried to connect to a network in STA mode
-int64_t prev_mili = 0;                   //Used for determining the time duration between 2 commands while controlling the bot in manual mode
-int64_t curr_mili = 0;                   //Used for determining the time duration between 2 commands while controlling the bot in manual mode
-float time_duration = 0;                 //Used for storing the time duration between 2 commands while controlling the bot in manual mode
-int conn_flag = 0;                       //Denote which Wifi mode the ESP is used : 0 = SAP, 1 to WIFI_NUM = STA wifi index
-int record_flag = 0;                     //Denote whether path is being recorded or not
-static char EXAMPLE_ESP_WIFI_SSID[SSID_LEN];    //Store the network ssid that the esp is using currently in STA mode
-static char EXAMPLE_ESP_WIFI_PASS[PASS_LEN];    //Store the network password that the esp is using currently in STA mode
-int total = 0;                           //Total number of network credentials for STA mode stored till now
-int total_paths = 0;                     //Total number of paths stored till now
-int auto_flag = 0;                       //Denote whether auto mode is on or off
-int manual_flag = 0;                     //To check if it is in manual motion mode
+static EventGroupHandle_t s_wifi_event_group;   
+const char *TAG = "wifi station";       
+int flag = -1;                           
+static int s_retry_num = 0;                             
+float state_value = 0;                 
+int conn_flag = 0;                       
+int record_flag = 0;                     
+static char EXAMPLE_ESP_WIFI_SSID[SSID_LEN];    
+static char EXAMPLE_ESP_WIFI_PASS[PASS_LEN];    
+int total = 0;                           
+int total_paths = 0;                     
+int auto_flag = 0;                       
+int manual_flag = 0;                    
 int auto_stop_flag = 0;
 int auto_pause_flag = 0;
 int docking_flag = 0;
 int docking_enable = 0;
+int batteryPercent = 0;
 static TaskHandle_t Task1;                      //Task handle to keep track of created task running on Core 1
 char pathn[5][32] = {0};
 
@@ -433,6 +431,7 @@ esp_err_t update_paths()
     return ESP_OK;
 }
 
+/*Used for updating the paths name from the file to the pathn[] array that is reponsible for displaying the paths onto the webpage*/
 esp_err_t update_pathname()
 {
     char str[LINE_LEN], temp[500] = "";
@@ -452,7 +451,6 @@ esp_err_t update_pathname()
             linectr++;
             count_flag = 0;
         }  
-                    
         if (strchr(str, '\n') && strlen(temp)>3){      //We only increment the linectr when we have \n, because of a single path having multiple lines
             //ESP_LOGI(TAG, "temp: %s", temp);       
             char *token, *token1;
@@ -635,14 +633,19 @@ void wifi_init_sta(void)
     vEventGroupDelete(s_wifi_event_group);
 }
 
-/*Function that will run parallely on Core 1*/
+/*Function that runs parallely on Core 1, 
+It is responsible for the actuation of different movement of the bot like forward, left, right, back.
+Along with that it also incorporate the autonomous mode* execution which calls get_path()function to execute the selected path.
+The last feature of this funtion is it calculates the battery voltage via ADC_CHANNEL_6[GPIO 36] 
+and updates the batteryPercent variable diplayed on default_page() HTML page. */
 void Task1code( void * pvParameters ){
+    long int last_time = 0;
     init_gpio();    //Initialize encoder and sensor pins
 	init_pwm();     //Initialize PWM channel
    
     while(1){   
     	//ESP_LOGI(TAG, "Infinite Loop running On core %d", xPortGetCoreID());
-        if(record_flag == 1 || manual_flag == 1){					//manual_flag, record_flag, flag, auto_flag are updated in other portions of the code 
+        if(record_flag == 1 || manual_flag == 1){					//manual_flag, record_flag are updated in other portions of the code 
             if(flag == 0) move_forward();
             else if(flag == 1) move_left();
             else if(flag == 2) move_right();
@@ -658,8 +661,7 @@ void Task1code( void * pvParameters ){
                 ESP_LOGI(TAG, "Path execution stopped");
                 auto_stop_flag = 0;
             }
-            //if(!(xCoor ~= 0 && yCoor ~= 0))     For cases when docking is not possible
-                docking_flag = 1;   //Only available when out of auto either via stop or after completion
+            docking_flag = 1;   //Only available when out of auto either via stop or after completion
         }
         //For docking mode
         else if(docking_enable){
@@ -674,6 +676,17 @@ void Task1code( void * pvParameters ){
         }
         else
             move_stop();
+        //For battery voltage calculation via ADC
+        if ((esp_timer_get_time()-last_time) > ADC_SAMPLING_FREQ ){
+            int raw = 0;
+            for (int ch = 0; ch < ADC_AVERAGING_FREQ; ch++){
+                raw += adc1_get_raw(ADC1_CHANNEL_6);
+            }
+            raw /= 10; 
+            batteryPercent = raw/40.95;  //in percentage, display on webpage
+            //printf("Battery Percent: %d\n", batteryPercent);
+            last_time = esp_timer_get_time();
+        }
     }
 }
 
