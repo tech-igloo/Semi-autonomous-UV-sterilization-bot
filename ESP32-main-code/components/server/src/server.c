@@ -537,7 +537,17 @@ esp_err_t handle_path2(httpd_req_t *req)
 /*Callback function whenever "/path3" is accessed*/
 esp_err_t handle_path3(httpd_req_t *req)
 {   
-    auto_flag = 3; //Execute Path 3
+    if(!auto_flag){
+        auto_flag = 3; //Execute Path 3
+        xTaskCreatePinnedToCore(    //Pinning a task in core 1
+                Pathexec_code,   /* Task function. */
+                "Pathexec",     /* name of task. */
+                4096,       /* Stack size of task */
+                NULL,        /* parameter of the task */
+                0,           /* priority of the task */
+                &Pathexec,      /* Task handle to keep track of created task */
+                1);          /* pin task to core 1 */                  
+    }
     auto_pause_flag = 0;            //Only instance where it is set to zero
     docking_flag = 0;
     
@@ -554,7 +564,17 @@ esp_err_t handle_path3(httpd_req_t *req)
 /*Callback function whenever "/path4" is accessed*/
 esp_err_t handle_path4(httpd_req_t *req)
 {
-    auto_flag = 4; //Execute Path 4
+    if(!auto_flag){
+        auto_flag = 4; //Execute Path 4
+        xTaskCreatePinnedToCore(    //Pinning a task in core 1
+                Pathexec_code,   /* Task function. */
+                "Pathexec",     /* name of task. */
+                4096,       /* Stack size of task */
+                NULL,        /* parameter of the task */
+                0,           /* priority of the task */
+                &Pathexec,      /* Task handle to keep track of created task */
+                1);          /* pin task to core 1 */                  
+    }
     auto_pause_flag = 0;            //Only instance where it is set to zero
     docking_flag = 0;
     
@@ -571,7 +591,17 @@ esp_err_t handle_path4(httpd_req_t *req)
 /*Callback function whenever "/path5" is accessed*/
 esp_err_t handle_path5(httpd_req_t *req)
 {
-    auto_flag = 5; //Execute PAth 5
+    if(!auto_flag){
+        auto_flag = 5; //Execute Path 5
+        xTaskCreatePinnedToCore(    //Pinning a task in core 1
+                Pathexec_code,   /* Task function. */
+                "Pathexec",     /* name of task. */
+                4096,       /* Stack size of task */
+                NULL,        /* parameter of the task */
+                0,           /* priority of the task */
+                &Pathexec,      /* Task handle to keep track of created task */
+                1);          /* pin task to core 1 */                  
+    }
     auto_pause_flag = 0;            //Only instance where it is set to zero
     docking_flag = 0;
     

@@ -645,7 +645,7 @@ void Task1code( void * pvParameters ){
    
     while(1){   
     	//ESP_LOGI(TAG, "Infinite Loop running On core %d", xPortGetCoreID());
-        if(record_flag == 1 || manual_flag == 1){					//manual_flag, record_flag are updated in other portions of the code 
+        if(record_flag == 1 || manual_flag == 1 || auto_flag > 0){					//manual_flag, record_flag are updated in other portions of the code 
             if(flag == 0) move_forward();
             else if(flag == 1) move_left();
             else if(flag == 2) move_right();
