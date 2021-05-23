@@ -600,6 +600,7 @@ esp_err_t get_path(int local_flag)
         docking_algo(temp);  //update this fucntion from c file.
     }
     ESP_LOGI(TAG, "Get Path print %s", temp);
+    init_pid();
     /*To get x,y coordinates of the path*/
     char *token, *token1;
     token = strtok(temp, " ");    //The elements are seperated by " "
@@ -636,6 +637,8 @@ esp_err_t get_path(int local_flag)
             break;
         }          
     }
+    prev_point[0] = current_point[0];
+    prev_point[1] = current_point[1];
     lastAutoPath = auto_flag;
     auto_flag = 0;
 
@@ -717,7 +720,7 @@ void updateParams(double xd, double yd)
     angle_required = angle_required*57.29;
     prev_point[0] = xd;
     prev_point[1] = yd;
-    ESP_LOGI(TAG, "Start point(X,Y):(%f, %f), dist_required,angle_required:(%f, %f)",prev_point[0],prev_point[1],dist_required,angle_required*57.29); 
+    ESP_LOGI(TAG, "Start point(X,Y):(%f, %f), dist_required,angle_required:(%f, %f)",prev_point[0],prev_point[1],dist_required,angle_required); 
     if(!(angle_required == angle_required))
         doneFlag = 1;
     dist_traversed = 0;
@@ -734,21 +737,21 @@ void actuationAuto(){
     else if (flag == 1 || flag == 2){  //angle_rotated is a static variable and is not being reset to zero in between
         if (flag == 1){ //anti clockwise for positive angle
             //printf("Before:  leftRot: %d, LeftTicks: %d\n", leftRot, leftTicks); 
-            angle_rotated = angle_rotated + ((leftRot- prevleftRot)*ENCODERresolution + (leftTicks- prevleftTicks)*wheeldist_perTick*2*57.29)/wheelbase; //Angle of the bot in radians
+            angle_rotated = angle_rotated + (((leftRot- prevleftRot)*ENCODERresolution + (leftTicks- prevleftTicks))*wheeldist_perTick*2*57.29)/wheelbase; //Angle of the bot in radians
             prevleftRot = leftRot;
             prevleftTicks = leftTicks;
             //printf("After: %d\n", ((leftRot*ENCODERresolution + leftTicks)*wheeldist_perTick*2)/wheelbase); 
         }
         else{           //Clockwise negative angle
-            angle_rotated = angle_rotated - ((leftRot- prevleftRot)*ENCODERresolution + (leftTicks- prevleftTicks)*wheeldist_perTick*2*57.29)/wheelbase; //Angle of the bot in radians
+            angle_rotated = angle_rotated - (((leftRot- prevleftRot)*ENCODERresolution + (leftTicks- prevleftTicks))*wheeldist_perTick*2*57.29)/wheelbase; //Angle of the bot in radians
             prevleftRot = leftRot;
             prevleftTicks = leftTicks;
         }
     }
-    if(angle_rotated > M_PI){
+    if(angle_rotated > 180){
         angle_rotated = angle_rotated - 360;
     }
-    if(angle_rotated < -M_PI){
+    if(angle_rotated < -180){
         angle_rotated = angle_rotated + 360;
     }
     current_point[0] = stop_point[0] + dist_traversed*cos(angle_rotated/57.29); //calculates co-ordinates of the current point using the 
@@ -840,7 +843,7 @@ void rotate(){
     else if((angle_required - angle_rotated) > 0 || (angle_required - angle_rotated) < -180){
         flag = 1;    //If diff is positive, then left(+ve for anticlockwise)
     }
-    else{
+    else if((angle_required - angle_rotated) < 0 || (angle_required - angle_rotated) > 180){
         flag = 2; 
     }
 }
@@ -848,7 +851,7 @@ void rotate(){
 /*To actuate and record the forward motion of the bot, till dist_required is achieved*/
 void forward(){
     flag = 0; 
-    if((dist_required - dist_traversed) < 0.0001)  //set some threshold after which it can move 
+    if((dist_required - dist_traversed) < 0.01)  //set some threshold after which it can move 
         doneFlag = 1;
 }
 
@@ -862,10 +865,10 @@ void update_stopPoint(){
 void recalculate(){
     dist_required = sqrt(pow(prev_point[1]-current_point[1], 2) + pow(prev_point[0]-current_point[0], 2));    
     if(prev_point[0]-current_point[0] >= 0){
-        angle_required = atan((prev_point[1]-current_point[1])/(prev_point[0]-current_point[0]))*180/M_PI;
+        angle_required = atan((prev_point[1]-current_point[1])/(prev_point[0]-current_point[0]));
     }
     else{
-        angle_required = -atan((prev_point[0]-current_point[0])/(prev_point[1]-current_point[1]))*180/M_PI;
+        angle_required = -atan((prev_point[0]-current_point[0])/(prev_point[1]-current_point[1]));
         if(prev_point[1]-current_point[1] >= 0)
             angle_required = angle_required + M_PI/2;
         else 

@@ -1817,7 +1817,16 @@ esp_err_t handle_docking(httpd_req_t *req)
     if(docking_flag){
         docking_enable = 1;
         docking_flag = 0;
+        xTaskCreatePinnedToCore(    //Pinning a task in core 1
+                Pathexec_code,   /* Task function. */
+                "Pathexec",     /* name of task. */
+                4096,       /* Stack size of task */
+                NULL,        /* parameter of the task */
+                0,           /* priority of the task */
+                &Pathexec,      /* Task handle to keep track of created task */
+                1);          /* pin task to core 1 */                  
     }
+    auto_pause_flag = 0;            //Only instance where it is set to zero
 
     char* resp = get_pathexec();
     httpd_resp_send(req, resp, strlen(resp));
@@ -2186,10 +2195,12 @@ char* get_pathexec()
     strcat(ptr, "<p>Press to stop the execution</p><a class=\"button button-on\" href=\"/stopauto\">STOP</a>\n");
     if(!auto_pause_flag)
         strcat(ptr, "<p>Pause execution: OFF(Press to Pause)</p><a class=\"button button-on\" href=\"/pauseauto\">ON</a>\n");
-    else{
+    else if(auto_flag){
         strcat(ptr, "<p>Pause execution: ON(Press to Resume)</p><a class=\"button button-off\" href=\"/path");
         strcat(ptr, str); //Go to "/path1" or "/path2" and so on
         strcat(ptr, "\">OFF</a>\n");
+    }else if(docking_enable){
+        strcat(ptr, "<p>Pause execution: ON(Press to Resume)</p><a class=\"button button-off\" href=\"/dock""\">OFF</a>\n");
     }
     strcat(ptr, "<p>Press to return to home</p><a class=\"button button-on\" href=\"/\">HOME</a>\n");
     strcat(ptr, "</body>\n");
