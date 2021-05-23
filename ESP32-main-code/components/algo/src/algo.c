@@ -714,9 +714,10 @@ void updateParams(double xd, double yd)
         else
             angle_required = angle_required - M_PI/2;
     }
+    angle_required = angle_required*57.29;
     prev_point[0] = xd;
     prev_point[1] = yd;
-    ESP_LOGI(TAG, "Start point(X,Y):(%f, %f), dist_required,angle_required:(%f, %f)",prev_point[0],prev_point[1],dist_required,angle_required);  //*57.29
+    ESP_LOGI(TAG, "Start point(X,Y):(%f, %f), dist_required,angle_required:(%f, %f)",prev_point[0],prev_point[1],dist_required,angle_required*57.29); 
     if(!(angle_required == angle_required))
         doneFlag = 1;
     dist_traversed = 0;
@@ -733,25 +734,25 @@ void actuationAuto(){
     else if (flag == 1 || flag == 2){  //angle_rotated is a static variable and is not being reset to zero in between
         if (flag == 1){ //anti clockwise for positive angle
             //printf("Before:  leftRot: %d, LeftTicks: %d\n", leftRot, leftTicks); 
-            angle_rotated = angle_rotated + ((leftRot- prevleftRot)*ENCODERresolution + (leftTicks- prevleftTicks)*wheeldist_perTick*2)/wheelbase; //Angle of the bot in radians
+            angle_rotated = angle_rotated + ((leftRot- prevleftRot)*ENCODERresolution + (leftTicks- prevleftTicks)*wheeldist_perTick*2*57.29)/wheelbase; //Angle of the bot in radians
             prevleftRot = leftRot;
             prevleftTicks = leftTicks;
             //printf("After: %d\n", ((leftRot*ENCODERresolution + leftTicks)*wheeldist_perTick*2)/wheelbase); 
         }
         else{           //Clockwise negative angle
-            angle_rotated = angle_rotated - ((leftRot- prevleftRot)*ENCODERresolution + (leftTicks- prevleftTicks)*wheeldist_perTick*2)/wheelbase; //Angle of the bot in radians
+            angle_rotated = angle_rotated - ((leftRot- prevleftRot)*ENCODERresolution + (leftTicks- prevleftTicks)*wheeldist_perTick*2*57.29)/wheelbase; //Angle of the bot in radians
             prevleftRot = leftRot;
             prevleftTicks = leftTicks;
         }
     }
     if(angle_rotated > M_PI){
-        angle_rotated = angle_rotated - 2*M_PI;
+        angle_rotated = angle_rotated - 360;
     }
     if(angle_rotated < -M_PI){
-        angle_rotated = angle_rotated + 2*M_PI;
+        angle_rotated = angle_rotated + 360;
     }
-    current_point[0] = stop_point[0] + dist_traversed*cos(angle_rotated); //calculates co-ordinates of the current point using the 
-    current_point[1] = stop_point[1] + dist_traversed*sin(angle_rotated); //point where the orientation of the bot was last changed
+    current_point[0] = stop_point[0] + dist_traversed*cos(angle_rotated/57.29); //calculates co-ordinates of the current point using the 
+    current_point[1] = stop_point[1] + dist_traversed*sin(angle_rotated/57.29); //point where the orientation of the bot was last changed
 
 
     if(esp_timer_get_time()-prev_time> 500000 ){
@@ -834,9 +835,9 @@ void normal_motion(){
 
 /*To actuate and record the angular motion of the bot, till angle_required is achieved*/
 void rotate(){
-    if(fabs(angle_required - angle_rotated) <= 0.02)  //set some threshold after which it can move 
+    if(fabs(angle_required - angle_rotated) <= 5)  //set some threshold after which it can move 
         doneFlag = 1;
-    else if((angle_required - angle_rotated) > 0 || (angle_required - angle_rotated) < -3.14){
+    else if((angle_required - angle_rotated) > 0 || (angle_required - angle_rotated) < -180){
         flag = 1;    //If diff is positive, then left(+ve for anticlockwise)
     }
     else{
@@ -866,10 +867,11 @@ void recalculate(){
     else{
         angle_required = -atan((prev_point[0]-current_point[0])/(prev_point[1]-current_point[1]))*180/M_PI;
         if(prev_point[1]-current_point[1] >= 0)
-            angle_required = angle_required + 90;
+            angle_required = angle_required + M_PI/2;
         else 
-            angle_required = angle_required - 90;
+            angle_required = angle_required - M_PI/2;
     }
+    angle_required = angle_required*57.29;
     update_stopPoint();
     dist_traversed = 0;
     init_pid();
