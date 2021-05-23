@@ -652,28 +652,6 @@ void Task1code( void * pvParameters ){
             else if(flag == 3) move_back();
             else move_stop();
         }
-        //For autonomous mode
-        else if(auto_flag > 0){
-            ESP_ERROR_CHECK(get_path(auto_flag));
-            if(!auto_stop_flag)
-                ESP_LOGI(TAG, "Path executed successfully");
-            else{
-                ESP_LOGI(TAG, "Path execution stopped");
-                auto_stop_flag = 0;
-            }
-            docking_flag = 1;   //Only available when out of auto either via stop or after completion
-        }
-        //For docking mode
-        else if(docking_enable){
-            ESP_ERROR_CHECK(get_path(lastAutoPath));
-            if(!auto_stop_flag)
-                ESP_LOGI(TAG, "Path executed successfully");
-            else{
-                ESP_LOGI(TAG, "Path execution stopped");
-                auto_stop_flag = 0;
-            }
-            docking_enable = 0;
-        }
         else
             move_stop();
         //For battery voltage calculation via ADC
@@ -704,7 +682,7 @@ void app_main(void)
     xTaskCreatePinnedToCore(    //Pinning a task in core 1
                     Task1code,   /* Task function. */
                     "Task1",     /* name of task. */
-                    10000,       /* Stack size of task */
+                    4096,       /* Stack size of task */
                     NULL,        /* parameter of the task */
                     0,           /* priority of the task */
                     &Task1,      /* Task handle to keep track of created task */

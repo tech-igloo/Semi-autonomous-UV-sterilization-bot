@@ -1,6 +1,7 @@
 #include "server.h"
 #include "algo.h"
 
+TaskHandle_t Pathexec = NULL;   
 /*The following are structures linking each web address with their corresponding callback functions
   Each structure contains the web address, the corresponding callback function, the HTTP method (HTTP_GET or HTTP_POST) and any user context(NULL for all the structures)*/
 httpd_uri_t uri_reset = {
@@ -482,7 +483,17 @@ esp_err_t handle_start(httpd_req_t *req)
 /*Callback function whenever "/path1" is accessed*/
 esp_err_t handle_path1(httpd_req_t *req)
 {
-    auto_flag = 1; //Execute Path 1
+    if(!auto_flag){
+        auto_flag = 1; //Execute Path 1
+        xTaskCreatePinnedToCore(    //Pinning a task in core 1
+            Pathexec_code,   /* Task function. */
+            "Pathexec",     /* name of task. */
+            4096,       /* Stack size of task */
+            NULL,        /* parameter of the task */
+            0,           /* priority of the task */
+            &Pathexec,      /* Task handle to keep track of created task */
+            1);          /* pin task to core 1 */                  
+    }
     auto_pause_flag = 0;            //Only instance where it is set to zero
     docking_flag = 0; //Disable till next path is executed
     
@@ -499,7 +510,17 @@ esp_err_t handle_path1(httpd_req_t *req)
 /*Callback function whenever "/path2" is accessed*/
 esp_err_t handle_path2(httpd_req_t *req)
 {
-    auto_flag = 2; //Execute Path 2
+    if(!auto_flag){
+        auto_flag = 2; //Execute Path 2
+        xTaskCreatePinnedToCore(    //Pinning a task in core 1
+                Pathexec_code,   /* Task function. */
+                "Pathexec",     /* name of task. */
+                4096,       /* Stack size of task */
+                NULL,        /* parameter of the task */
+                0,           /* priority of the task */
+                &Pathexec,      /* Task handle to keep track of created task */
+                1);          /* pin task to core 1 */                  
+    }
     auto_pause_flag = 0;            //Only instance where it is set to zero
     docking_flag = 0;
     

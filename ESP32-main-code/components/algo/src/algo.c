@@ -48,7 +48,7 @@ static double time_flag = 0;                  //To represent the last time since
 static int detect_flag = 0;                   //To indicate when desired combination of ULTRASONIC sensor has detected a obstacle
 static int run = 0;                           //To move onto the next point from list once the previous has been reached
 static int obstacle_flag[5] = {0};            //To record ultrasonic value
-
+static int prevleftRot = 0, prevleftTicks = 0;
 /*To initialize the motor direction, encoder, sensor I/O pins, and ADC pins*/ 
 void init_gpio()
 {
@@ -131,6 +131,7 @@ void InterruptEncoder(void* arg)
     for(;;) {
         if(xQueueReceive(gpio_evt_queue, &io_num, portMAX_DELAY)) {
             //printf("GPIO[%d] intr, val: %d\n", io_num, gpio_get_level(io_num)); 
+            //printf("leftRot: %d, LeftTicks: %d\n", leftRot, leftTicks); 
             if (io_num == LEFT_ENCODERA){
                 leftTicks++;
                 if (leftTicks >= ENCODERresolution){
@@ -280,6 +281,8 @@ void init_pid()
     rightRot = 0;
     rightTicks = 0;
     doneFlag = 0;       //To move onto the next point from the list
+    prevleftRot = 0;
+    prevleftTicks = 0;
 }
 
 /*PID control loop performing velocity feedback for left motor*/
@@ -514,6 +517,42 @@ esp_err_t convert_paths(int n)
     return ESP_OK;
 }
 
+void Pathexec_code(void* arg)
+{
+    ESP_LOGI(TAG, "On core %d", xPortGetCoreID());
+    while (1)
+    {
+    //For autonomous mode
+        if(auto_flag > 0){
+            ESP_ERROR_CHECK(get_path(auto_flag));
+            if(!auto_stop_flag)
+                ESP_LOGI(TAG, "Path executed successfully");
+            else{
+                ESP_LOGI(TAG, "Path execution stopped");
+                auto_stop_flag = 0;
+            }
+            docking_flag = 1;   //Only available when out of auto either via stop or after completion
+            vTaskDelete(NULL);
+        }
+    //For docking mode
+        else if(docking_enable){
+            ESP_ERROR_CHECK(get_path(lastAutoPath));
+            if(!auto_stop_flag)
+                ESP_LOGI(TAG, "Path executed successfully");
+            else{
+                ESP_LOGI(TAG, "Path execution stopped");
+                auto_stop_flag = 0;
+            }
+            docking_enable = 0;
+            vTaskDelete(NULL);
+        }
+        else{
+            vTaskDelay(10);
+            vTaskDelete(NULL);
+        }
+    }  
+}
+
 /*Execute the local_flag'th path. It incorporates the autonomous algorithm which is responsible for replicating the 
 recorded path as well docking execution. Some of the features are reading the coordinates from the file,
 calling sensing, actuation function, pause and stop of auto path. */
@@ -589,7 +628,6 @@ esp_err_t get_path(int local_flag)
             }
             else{
                 flag = -1;
-                move_stop();
             }
         }
         ESP_LOGI(TAG, "Current point(X,Y):(%f, %f))",current_point[0],current_point[1]);
@@ -678,7 +716,7 @@ void updateParams(double xd, double yd)
     }
     prev_point[0] = xd;
     prev_point[1] = yd;
-    ESP_LOGI(TAG, "Start point(X,Y):(%f, %f), dist_required,angle_required:(%f, %f)",prev_point[0],prev_point[1],dist_required,angle_required*57.29);
+    ESP_LOGI(TAG, "Start point(X,Y):(%f, %f), dist_required,angle_required:(%f, %f)",prev_point[0],prev_point[1],dist_required,angle_required);  //*57.29
     if(!(angle_required == angle_required))
         doneFlag = 1;
     dist_traversed = 0;
@@ -692,19 +730,32 @@ way to move the bot to avoid collision.*/
 void actuationAuto(){
     if (flag == 0)
         dist_traversed = (leftRot*ENCODERresolution + leftTicks)*wheeldist_perTick; //In meters //To know if the target has been reached
-    else if ((flag == 1 || flag == 2)&& !doneFlag){  //angle_rotated is a static variable and is not being reset to zero in between
-        if (flag == 1) //anti clockwise for positive angle
-            angle_rotated = angle_rotated + ((leftRot*ENCODERresolution + leftTicks)*wheeldist_perTick*2)/wheelbase; //Angle of the bot in radians
-        else           //Clockwise negative angle
-            angle_rotated = angle_rotated - ((leftRot*ENCODERresolution + leftTicks)*wheeldist_perTick*2)/wheelbase; //Angle of the bot in radians
+    else if (flag == 1 || flag == 2){  //angle_rotated is a static variable and is not being reset to zero in between
+        if (flag == 1){ //anti clockwise for positive angle
+            //printf("Before:  leftRot: %d, LeftTicks: %d\n", leftRot, leftTicks); 
+            angle_rotated = angle_rotated + ((leftRot- prevleftRot)*ENCODERresolution + (leftTicks- prevleftTicks)*wheeldist_perTick*2)/wheelbase; //Angle of the bot in radians
+            prevleftRot = leftRot;
+            prevleftTicks = leftTicks;
+            //printf("After: %d\n", ((leftRot*ENCODERresolution + leftTicks)*wheeldist_perTick*2)/wheelbase); 
+        }
+        else{           //Clockwise negative angle
+            angle_rotated = angle_rotated - ((leftRot- prevleftRot)*ENCODERresolution + (leftTicks- prevleftTicks)*wheeldist_perTick*2)/wheelbase; //Angle of the bot in radians
+            prevleftRot = leftRot;
+            prevleftTicks = leftTicks;
+        }
     }
-    angle_rotated = fmod(angle_rotated, 2*M_PI);
+    if(angle_rotated > M_PI){
+        angle_rotated = angle_rotated - 2*M_PI;
+    }
+    if(angle_rotated < -M_PI){
+        angle_rotated = angle_rotated + 2*M_PI;
+    }
     current_point[0] = stop_point[0] + dist_traversed*cos(angle_rotated); //calculates co-ordinates of the current point using the 
     current_point[1] = stop_point[1] + dist_traversed*sin(angle_rotated); //point where the orientation of the bot was last changed
 
 
     if(esp_timer_get_time()-prev_time> 500000 ){
-        ESP_LOGI(TAG, "Current point(X,Y):(%f, %f), dist_traversed,angle_rotated:(%f, %f), flag: %d",current_point[0],current_point[1],dist_traversed,angle_rotated*57.29,flag);
+        ESP_LOGI(TAG, "Current point(X,Y):(%f, %f), dist_traversed,angle_rotated:(%f, %f), flag: %d",current_point[0],current_point[1],dist_traversed,angle_rotated,flag);
         prev_time = esp_timer_get_time();
     }
     // if((prev_time>=time_flag+0.5) && (prev_time<time_flag+1))  //this for moving forward slowly after sensing 
@@ -762,7 +813,6 @@ void normal_motion(){
             ESP_LOGI(TAG, "Rotation Done flag");
             init_pid();
             flag = -1;
-            move_stop();
             rotating_flag = 0;
         }
         else
@@ -773,7 +823,6 @@ void normal_motion(){
             ESP_LOGI(TAG, "forward Done flag");
             init_pid();
             flag = -1;
-            move_stop();
             run=1;          //Move to next point
             update_stopPoint();
             rotating_flag = 1;
@@ -785,22 +834,19 @@ void normal_motion(){
 
 /*To actuate and record the angular motion of the bot, till angle_required is achieved*/
 void rotate(){
-    if(fabs(angle_required - angle_rotated) < 0.05)  //set some threshold after which it can move 
+    if(fabs(angle_required - angle_rotated) <= 0.02)  //set some threshold after which it can move 
         doneFlag = 1;
-    else if((angle_required - angle_rotated) > 0){
+    else if((angle_required - angle_rotated) > 0 || (angle_required - angle_rotated) < -3.14){
         flag = 1;    //If diff is positive, then left(+ve for anticlockwise)
-        move_left();
     }
     else{
         flag = 2; 
-        move_right();
     }
 }
 
 /*To actuate and record the forward motion of the bot, till dist_required is achieved*/
 void forward(){
     flag = 0; 
-    move_forward();
     if((dist_required - dist_traversed) < 0.0001)  //set some threshold after which it can move 
         doneFlag = 1;
 }
@@ -847,7 +893,6 @@ void sensing(){
 /*To decrease the forward speed when an obstacle is close*/
 void forwardSlow(int num){
     flag = 0;
-    move_forward();
     lin_speed = MIN_LINEAR_SPEED*num;
 }
 
@@ -856,11 +901,9 @@ void rotateSlow(int num){
     ang_speed = MIN_ANGULAR_SPEED*abs(num);
     if(num > 0){
         flag = 1;    //left
-        move_left();
     }
     else{
         flag = 2;    //right
-        move_right();
     }
 }
 

@@ -63,7 +63,7 @@ char pass[WIFI_NUM][PASS_LEN];             //Store all the network passwords tha
 extern char pathn[5][32];                  //Store the path name, updated using the function update_pathname() 
 extern int docking_flag;                   //To insinuate that the docking option is available
 extern int docking_enable;                 //To start the execution of docking path
-
+extern TaskHandle_t Pathexec;                       
 struct httpd_uri_t {                       //structure intialization for all the structure pointer
     const char       *uri;                 //linking web addresses and corresponding call back functions
     httpd_method_t    method; 
@@ -71,6 +71,7 @@ struct httpd_uri_t {                       //structure intialization for all the
     void *user_ctx;
 };
 
+void Pathexec_code(void* arg);
 /* Callback funtions for different URL mapped in httpd_uri_t*/
 esp_err_t handle_OnConnect(httpd_req_t *req);
 esp_err_t handle_reset(httpd_req_t *req);

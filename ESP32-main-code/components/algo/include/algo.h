@@ -33,7 +33,7 @@
 #define ULTRA1 25
 #define ULTRA2 26
 #define ULTRA3 4
-#define ULTRA4 2
+#define ULTRA4 32
 #define ULTRA5 15
 #define GPIO_ULTRASONIC_PIN_SEL ((1ULL<<ULTRA1) | (1ULL<<ULTRA2) | (1ULL<<ULTRA3) | (1ULL<<ULTRA4) | (1ULL<<ULTRA5))
 //Battery voltage monitoring ADC configuration
