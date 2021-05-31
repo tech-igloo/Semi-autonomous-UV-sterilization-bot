@@ -8,11 +8,9 @@ The aim of building the robot was to develop a low-cost modular autonomous diffe
 
 Below are links to some detailed documentation discussing the selection of components and features as well explaining the ESP32 code.
 
->Main detailed document
+[Main detailed document](https://docs.google.com/document/d/1RLSxYpE-qpH-aJCvkTX2Nx5258DcZrUb-oL_mETsY1s/edit?usp=sharing)
 
->Code explanation document
-
->Code explanation video 
+Code explanation document
 
 ## Hardware
 
