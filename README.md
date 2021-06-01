@@ -1,16 +1,17 @@
 # UV-sterilization-bot
 
+<img align=right src="view5.JPG" width="150" title="UV sterilization bot"/> 
+
 This repo showcase the firmware of a modular semi-autonomous UV sterilization bot built using ESP32. It also contains the simulation scenes from Coppeliasim and Arduino code which was used to mimic encoders feedback, due to the unavailability of the hardware setup. The project is owned by [IOT-unifyAI Tech](https://www.linkedin.com/company/iot-unifyai-tech/about/) and was developed by multiple people working on different aspect of the code. 
 
+---
+---
+---
 ## Description
 
 The aim of building the robot was to develop a low-cost modular autonomous differential drive bot that can be used for various applications by switching the attachment on the bot, UV lamp is used in the present case for sterilization of the hospital ward and ICUs. The autonomous functionality was kept limited to keep the components and cost to a minimum. ESP32 is selected as the main controller because of its cost, speed, and dual-core architecture. In addition, it features an inbuilt wifi module for running the webserver. [ESP-IDF framework](https://github.com/espressif/esp-idf) is used as the main software for developing the embedded firmware.
 
-Below are links to some detailed documentation discussing the selection of components and features as well explaining the ESP32 code.
-
-[Main detailed document](https://docs.google.com/document/d/1RLSxYpE-qpH-aJCvkTX2Nx5258DcZrUb-oL_mETsY1s/edit?usp=sharing)
-
-Code explanation document
+Refer to the [Main detailed document](https://docs.google.com/document/d/1RLSxYpE-qpH-aJCvkTX2Nx5258DcZrUb-oL_mETsY1s/edit?usp=sharing) for development process and philosopy behind the design. 
 
 ## Hardware
 
@@ -24,10 +25,8 @@ Prior to developing the code for ESP32, the autonomous navigation algorithm for 
 
 In the intermediate stages of development due to remote work and lack of availability of hardware, a arduino code was build for unit testing of code. The Arduino program produced square wave at regular intervals, the period of which could be set using the serial monitor to minic encoder feedback with speed depending upon the delay provided. This helped in validating the components of the autonomous and docking algorithm.
 
-## MVP Setup
+## Design and Demo
 
->Images of the current bot
+<img align=centre src="UV.gif" width="500" title="UV sterilization bot"/> 
 
-## Demo
-
->>demo video
+>>Add demo video
