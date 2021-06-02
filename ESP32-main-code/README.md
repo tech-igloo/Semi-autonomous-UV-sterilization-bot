@@ -7,7 +7,8 @@ Please check [ESP-IDF docs](https://docs.espressif.com/projects/esp-idf/en/lates
 
 Build Instructions:
 
-* Navigate to /ESP32-main-code, Run idf.py build.
-* In case it does not build, run idf.py fullclean.
 * Run idf.py menuconfig. Go to Component Config -> Wi-Fi -> Wifi Task Core ID to set to core 0 on which the Wifi will run.
 * Make sure that the max_uri and max_header fields are set to 1024 in the http_server option in menuconfig.
+* Navigate to /ESP32-main-code, Run idf.py build.
+* In case it does not build, run idf.py fullclean and build again.
+
