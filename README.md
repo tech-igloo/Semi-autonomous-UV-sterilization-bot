@@ -13,7 +13,7 @@ The aim of building the robot was to develop a low-cost modular autonomous diffe
 
 ### There is another version of the same project developed with minor code changes like data storage, path reversal but offers same functionality. Ref: [Second version](https://github.com/tech-igloo/UV-sterilization-bot).
 
-Refer to the [Main detailed document](https://docs.google.com/document/d/1RLSxYpE-qpH-aJCvkTX2Nx5258DcZrUb-oL_mETsY1s/edit?usp=sharing) for development process and philosopy behind the design. 
+Refer to the [wiki](https://github.com/tech-igloo/Semi-autonomous-UV-sterilization-bot/wiki) or [Main detailed document](https://docs.google.com/document/d/1RLSxYpE-qpH-aJCvkTX2Nx5258DcZrUb-oL_mETsY1s/edit?usp=sharing) for development process and philosopy behind the design. 
 
 ## Hardware
 
