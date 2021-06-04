@@ -517,6 +517,7 @@ esp_err_t convert_paths(int n)
     return ESP_OK;
 }
 
+/*The task that is created by execute path via webserver*/
 void Pathexec_code(void* arg)
 {
     ESP_LOGI(TAG, "On core %d", xPortGetCoreID());
@@ -734,19 +735,17 @@ way to move the bot to avoid collision.*/
 void actuationAuto(){
     if (flag == 0)
         dist_traversed = (leftRot*ENCODERresolution + leftTicks)*wheeldist_perTick; //In meters //To know if the target has been reached
-    else if (flag == 1 || flag == 2){  //angle_rotated is a static variable and is not being reset to zero in between
-        if (flag == 1){ //anti clockwise for positive angle
-            //printf("Before:  leftRot: %d, LeftTicks: %d\n", leftRot, leftTicks); 
-            angle_rotated = angle_rotated + (((leftRot- prevleftRot)*ENCODERresolution + (leftTicks- prevleftTicks))*wheeldist_perTick*2*57.29)/wheelbase; //Angle of the bot in radians
-            prevleftRot = leftRot;
-            prevleftTicks = leftTicks;
-            //printf("After: %d\n", ((leftRot*ENCODERresolution + leftTicks)*wheeldist_perTick*2)/wheelbase); 
-        }
-        else{           //Clockwise negative angle
-            angle_rotated = angle_rotated - (((leftRot- prevleftRot)*ENCODERresolution + (leftTicks- prevleftTicks))*wheeldist_perTick*2*57.29)/wheelbase; //Angle of the bot in radians
-            prevleftRot = leftRot;
-            prevleftTicks = leftTicks;
-        }
+    else if (flag == 1){ //anti clockwise for positive angle
+        //printf("Before:  leftRot: %d, LeftTicks: %d\n", leftRot, leftTicks); 
+        angle_rotated = angle_rotated + (((leftRot- prevleftRot)*ENCODERresolution + (leftTicks- prevleftTicks))*wheeldist_perTick*2*57.29)/wheelbase; //Angle of the bot in deg
+        prevleftRot = leftRot;
+        prevleftTicks = leftTicks;
+        //printf("After: %d\n", ((leftRot*ENCODERresolution + leftTicks)*wheeldist_perTick*2)/wheelbase); 
+    }
+    else if(flag == 2){           //Clockwise negative angle
+        angle_rotated = angle_rotated - (((leftRot- prevleftRot)*ENCODERresolution + (leftTicks- prevleftTicks))*wheeldist_perTick*2*57.29)/wheelbase; //Angle of the bot in deg
+        prevleftRot = leftRot;
+        prevleftTicks = leftTicks;
     }
     if(angle_rotated > 180){
         angle_rotated = angle_rotated - 360;
