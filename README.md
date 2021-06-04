@@ -1,6 +1,6 @@
 # UV-sterilization-bot
 
-<img align=right src="view5.JPG" width="150" title="UV sterilization bot"/> 
+<img align=right src="https://github.com/tech-igloo/Semi-autonomous-UV-sterilization-bot/blob/main/flow_chart-and-images/images/view5.JPG" width="150" title="UV sterilization bot"/> 
 
 This repo showcase the firmware of a modular semi-autonomous UV sterilization bot built using ESP32. It also contains the simulation scenes from Coppeliasim and Arduino code which was used to mimic encoders feedback, due to the unavailability of the hardware setup. The project is owned by [IOT-unifyAI Tech](https://www.linkedin.com/company/iot-unifyai-tech/about/) a budding startup and was developed by multiple people working on different aspect of the code. 
 
@@ -33,7 +33,7 @@ In the intermediate stages of development due to remote work and lack of availab
 
 ## Design and Demo
 
-<img align=centre src="UV.gif" width="500" title="UV sterilization bot"/> 
+<img align=centre src="https://github.com/tech-igloo/Semi-autonomous-UV-sterilization-bot/blob/main/flow_chart-and-images/images/UV.gif" width="500" title="UV sterilization bot"/> 
 
 >>Add demo video
 
