@@ -2,16 +2,20 @@
 
 <img align=right src="view5.JPG" width="150" title="UV sterilization bot"/> 
 
-This repo showcase the firmware of a modular semi-autonomous UV sterilization bot built using ESP32. It also contains the simulation scenes from Coppeliasim and Arduino code which was used to mimic encoders feedback, due to the unavailability of the hardware setup. The project is owned by [IOT-unifyAI Tech](https://www.linkedin.com/company/iot-unifyai-tech/about/) and was developed by multiple people working on different aspect of the code. 
+This repo showcase the firmware of a modular semi-autonomous UV sterilization bot built using ESP32. It also contains the simulation scenes from Coppeliasim and Arduino code which was used to mimic encoders feedback, due to the unavailability of the hardware setup. The project is owned by [IOT-unifyAI Tech](https://www.linkedin.com/company/iot-unifyai-tech/about/) a budding startup and was developed by multiple people working on different aspect of the code. 
 
 ---
 ---
 ---
 ## Description
 
-The aim of building the robot was to develop a low-cost modular autonomous differential drive bot that can be used for various applications by switching the attachment on the bot, UV lamp is used in the present case for sterilization of the hospital ward and ICUs. The autonomous functionality was kept limited to keep the components and cost to a minimum. ESP32 is selected as the main controller because of its cost, speed, and dual-core architecture. In addition, it features an inbuilt wifi module for running the webserver. [ESP-IDF framework](https://github.com/espressif/esp-idf) is used as the main software for developing the embedded firmware.
+The aim of building the robot was to develop a low-cost modular autonomous differential drive bot that can be used for various applications by switching the attachment on the bot, UV lamp is used in the present case for sterilization of the hospital ward and ICUs. The autonomous functionality was kept limited to keep the components and cost to a minimum. ESP32 is selected as the main controller because of its cost, speed, and dual-core architecture. In addition, it features an inbuilt wifi module for running the webserver. [ESP-IDF framework](https://github.com/espressif/esp-idf) is used as the main software for developing the embedded firmware. 
 
-### There is another version of the same project developed with minor code changes like data storage, path reversal but offers same functionality. Ref: [Second version](https://github.com/tech-igloo/UV-sterilization-bot).
+As we are all experiencing a once in a century pandemic, It's important we build technologies that help reduce the virus spread in open/closed spaces. This project is one step in that direction and we are hoping to see open community collaboration around this project, Hence we open source the project and documentation. Note that the current development is limited to testing on mini-bot, the final prototype development and testing is still in progress. Relevant updates will be posted here. Stay safe and Enjoy innovating....Cheers!     
+
+Feel free to reach us out email: raj@iot-unifyai-tech.com or open an "issue". We'll try to gt back to you at the earliest!  
+
+### There is another version of the same project developed with minor code changes like data storage, path reversal but offers same functionality. Ref: [Second version](https://github.com/tech-igloo/UV-sterilization-bot-version2).
 
 Refer to the [wiki](https://github.com/tech-igloo/Semi-autonomous-UV-sterilization-bot/wiki) or [Main detailed document](https://docs.google.com/document/d/1RLSxYpE-qpH-aJCvkTX2Nx5258DcZrUb-oL_mETsY1s/edit?usp=sharing) for development process and philosopy behind the design. 
 
