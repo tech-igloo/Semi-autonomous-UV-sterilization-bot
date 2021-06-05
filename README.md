@@ -34,10 +34,12 @@ In the intermediate stages of development due to remote work and lack of availab
 ## Design and [Demo Videos](https://www.youtube.com/watch?v=vrKzI4iPh6s&list=PLiSz-tHhuDyWTSyxQS6aaqJ5iGOZNp_HJ)
 
 #### CAD 3D view of the BOT
-
-<img align=centre src="https://github.com/tech-igloo/Semi-autonomous-UV-sterilization-bot/blob/main/flow_chart-and-images/images/UV.gif" width="500"
+  
+<div align="center">  
+          <img src="https://github.com/tech-igloo/Semi-autonomous-UV-sterilization-bot/blob/main/flow_chart-and-images/images/UV.gif" width="500"
           title="UV sterilization bot"/>     
-          
+          </div>    
+
 ---
 
 #### Non-ground test [Version 1](https://github.com/tech-igloo/Semi-autonomous-UV-sterilization-bot/) and [Version2](https://github.com/tech-igloo/UV-sterilization-bot-version2)    
