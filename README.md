@@ -13,7 +13,7 @@ The aim of building the robot was to develop a low-cost modular autonomous bot t
 
 As we are all experiencing a once in a century covid-19 pandemic, It's important we build technologies that help reduce the virus spread in open/closed spaces. This project is one step in that direction and we are hoping to see open community collaboration around this project, Hence we open source the project and documentation. Note that the current development is limited to testing on mini-bot, the final prototype development and testing is still in progress. Relevant updates will be posted here. Stay safe and Enjoy innovating....Cheers!     
 
-Feel free to reach us out email: raj@iot-unifyai-tech.com or open an "issue". We'll try to get back to you at the earliest!  
+Feel free to reach us out email: raj@iot-unifyai-tech.com/ IOT.unifyAI.Tech@gmail.com / open an "issue". We'll try to get back to you at the earliest!  
 
 ### There is another version of the same project developed with minor code changes like data storage, path reversal but offers same functionality. Ref: [Second version](https://github.com/tech-igloo/UV-sterilization-bot-version2).
 
